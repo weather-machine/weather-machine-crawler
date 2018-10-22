@@ -1,0 +1,14 @@
+{
+  "name": "weather-machine-crawler",
+  "version": "1.0.0",
+  "description": "gathering weather data",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Marcin Brandys",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "^4.17.11"
+  }
+}
