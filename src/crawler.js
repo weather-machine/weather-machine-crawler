@@ -52,3 +52,4 @@ function prepareData(data, page) {
 function convertToCelsius(temperature) {
     return (temperature - 273.15).toFixed(2);
 }
+// test connection
