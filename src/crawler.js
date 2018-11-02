@@ -8,13 +8,8 @@ var config = {
     intervalDuration: 2000,
     pages: [
         {
-            url: 'http://api.openweathermap.org/data/2.5/weather?q=London,uk&appid=212e48f40836a854c1a266834563a0b5'
-        },
-        {
-            url: 'http://api.openweathermap.org/data/2.5/weather?q=Warsaw,pl&appid=212e48f40836a854c1a266834563a0b5'
-        },
-        {
-            url: 'http://api.openweathermap.org/data/2.5/weather?q=Wroclaw,pl&appid=212e48f40836a854c1a266834563a0b5'
+            name: 'openweathermap',
+            url: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q='
         }
     ]
 };
@@ -266,30 +261,42 @@ var windDirection;
 })(windDirection || (windDirection = {}));
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
-var weather = new Weather(1541168536046, 10, 103, 34, 35.5, 32.0, 36.6, 'It will be funny', 37.1, 1003.5, 5.5, 0);
-// function gatherData() {
-//     for (let page of config.pages) {
-//         http.get(page.url, function(res) {
-//             let data: string = '';
-//             res.on('data', function(chunk) {
-//                 data += chunk;
-//             });
-//             res.on('end', function() {
-//                 prepareData(data, page);
-//             });
-//         }).on('error', function(error) {
-//             console.log('error with: ' + page + '\n' + error.message);
-//         });
-//     }
-// } setInterval(gatherData, config.intervalDuration);
-//
-// function prepareData(data: string, page: any) {
-//     let parsedData: any = JSON.parse(data);
-//     if (_.has(parsedData, 'main.temp')) {
-//         console.log(_.now() + ' ' + page.city + ': ' + convertToCelsius(parsedData.main.temp) + ' Celsius');
-//     }
-// }
-//
-// function convertToCelsius(temperature: number) {
-//     return (temperature - 273.15).toFixed(2);
-// }
+var weathers = [];
+var places = [];
+function initializePlaces() {
+    var place = new Place(1, 'London', 0, 0, 'uk');
+    places.push(place);
+}
+function gatherData() {
+    var _loop_1 = function (page) {
+        for (var _i = 0, places_1 = places; _i < places_1.length; _i++) {
+            var place = places_1[_i];
+            http.get(page.url + place.name, function (res) {
+                var data = '';
+                res.on('data', function (chunk) {
+                    data += chunk;
+                });
+                res.on('end', function () {
+                    weathers.push(initializeWeather(JSON.parse(data), page));
+                    console.log(weathers);
+                });
+            }).on('error', function (error) {
+                console.log('error with: ' + page + '\n' + error.message);
+            });
+        }
+    };
+    for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
+        var page = _a[_i];
+        _loop_1(page);
+    }
+}
+function initializeWeather(data, page) {
+    var date = new Date();
+    var dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+    return new Weather(dateUTC, 1, 1, 1, _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null, _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null, _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null, 'it will be find :D', _.has(data, 'main.humidity') ? data.main.humidity : null, _.has(data, 'main.pressure') ? data.main.pressure : null, _.has(data, 'wind.speed') ? data.wind.speed : null, 0);
+}
+function convertToCelsius(temperature) {
+    return (temperature - 273.15);
+}
+initializePlaces();
+setInterval(gatherData, config.intervalDuration);
