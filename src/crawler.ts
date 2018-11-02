@@ -244,9 +244,6 @@ enum windDirection {
     SW = 'SW'
 }
 
-http.createServer().listen(config.port, config.ip);
-console.log('Server running at http://' + config.ip + ':' + config.port + '/');
-
 let weathers: Weather[] = [];
 let places: Place[] = [];
 
@@ -298,5 +295,7 @@ function convertToCelsius(temperature: number) {
     return (temperature - 273.15);
 }
 
+http.createServer().listen(config.port, config.ip);
+console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 initializePlaces();
 setInterval(gatherData, config.intervalDuration);

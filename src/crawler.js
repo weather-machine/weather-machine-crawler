@@ -259,8 +259,6 @@ var windDirection;
     windDirection["SE"] = "SE";
     windDirection["SW"] = "SW";
 })(windDirection || (windDirection = {}));
-http.createServer().listen(config.port, config.ip);
-console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 var weathers = [];
 var places = [];
 function initializePlaces() {
@@ -298,5 +296,7 @@ function initializeWeather(data, page) {
 function convertToCelsius(temperature) {
     return (temperature - 273.15);
 }
+http.createServer().listen(config.port, config.ip);
+console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 initializePlaces();
 setInterval(gatherData, config.intervalDuration);
