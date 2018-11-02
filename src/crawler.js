@@ -155,10 +155,118 @@ var Weather = /** @class */ (function () {
     });
     return Weather;
 }());
+var Place = /** @class */ (function () {
+    function Place(id, name, latitude, longitude, country) {
+        this._id = id;
+        this._name = name;
+        this._latitude = latitude;
+        this._longitude = longitude;
+        this._country = country;
+    }
+    Object.defineProperty(Place.prototype, "id", {
+        get: function () {
+            return this._id;
+        },
+        set: function (value) {
+            this._id = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Place.prototype, "name", {
+        get: function () {
+            return this._name;
+        },
+        set: function (value) {
+            this._name = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Place.prototype, "latitude", {
+        get: function () {
+            return this._latitude;
+        },
+        set: function (value) {
+            this._latitude = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Place.prototype, "longitude", {
+        get: function () {
+            return this._longitude;
+        },
+        set: function (value) {
+            this._longitude = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(Place.prototype, "country", {
+        get: function () {
+            return this._country;
+        },
+        set: function (value) {
+            this._country = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return Place;
+}());
+var weatherType = /** @class */ (function () {
+    function weatherType(id, main, description) {
+        this._id = id;
+        this._main = main;
+        this._description = description;
+    }
+    Object.defineProperty(weatherType.prototype, "id", {
+        get: function () {
+            return this._id;
+        },
+        set: function (value) {
+            this._id = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(weatherType.prototype, "main", {
+        get: function () {
+            return this._main;
+        },
+        set: function (value) {
+            this._main = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(weatherType.prototype, "description", {
+        get: function () {
+            return this._description;
+        },
+        set: function (value) {
+            this._description = value;
+        },
+        enumerable: true,
+        configurable: true
+    });
+    return weatherType;
+}());
+var windDirection;
+(function (windDirection) {
+    windDirection["N"] = "N";
+    windDirection["E"] = "E";
+    windDirection["S"] = "S";
+    windDirection["W"] = "W";
+    windDirection["NE"] = "NE";
+    windDirection["NW"] = "NW";
+    windDirection["SE"] = "SE";
+    windDirection["SW"] = "SW";
+})(windDirection || (windDirection = {}));
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 var weather = new Weather(1541168536046, 10, 103, 34, 35.5, 32.0, 36.6, 'It will be funny', 37.1, 1003.5, 5.5, 0);
-console.log(weather);
 // function gatherData() {
 //     for (let page of config.pages) {
 //         http.get(page.url, function(res) {

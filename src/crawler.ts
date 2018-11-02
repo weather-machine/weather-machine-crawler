@@ -146,6 +146,109 @@ class Weather {
     }
 }
 
+class Place {
+    private _id: number;
+    private _name: string;
+    private _latitude: number;
+    private _longitude: number;
+    private _country: string;
+
+    constructor(id: number, name: string, latitude: number, longitude: number, country: string) {
+        this._id = id;
+        this._name = name;
+        this._latitude = latitude;
+        this._longitude = longitude;
+        this._country = country;
+    }
+
+    get id(): number {
+        return this._id;
+    }
+
+    set id(value: number) {
+        this._id = value;
+    }
+
+    get name(): string {
+        return this._name;
+    }
+
+    set name(value: string) {
+        this._name = value;
+    }
+
+    get latitude(): number {
+        return this._latitude;
+    }
+
+    set latitude(value: number) {
+        this._latitude = value;
+    }
+
+    get longitude(): number {
+        return this._longitude;
+    }
+
+    set longitude(value: number) {
+        this._longitude = value;
+    }
+
+    get country(): string {
+        return this._country;
+    }
+
+    set country(value: string) {
+        this._country = value;
+    }
+}
+
+class weatherType {
+    private _id: number;
+    private _main: string;
+    private _description: string;
+
+    constructor(id: number, main: string, description: string) {
+        this._id = id;
+        this._main = main;
+        this._description = description;
+    }
+
+    get id(): number {
+        return this._id;
+    }
+
+    set id(value: number) {
+        this._id = value;
+    }
+
+    get main(): string {
+        return this._main;
+    }
+
+    set main(value: string) {
+        this._main = value;
+    }
+
+    get description(): string {
+        return this._description;
+    }
+
+    set description(value: string) {
+        this._description = value;
+    }
+}
+
+enum windDirection {
+    N = 'N',
+    E = 'E',
+    S = 'S',
+    W = 'W',
+    NE = 'NE',
+    NW = 'NW',
+    SE = 'SE',
+    SW = 'SW'
+}
+
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 let weather = new Weather(
@@ -162,7 +265,6 @@ let weather = new Weather(
     5.5,
     0
 );
-console.log(weather);
 
 // function gatherData() {
 //     for (let page of config.pages) {
