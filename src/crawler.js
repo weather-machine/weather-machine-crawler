@@ -50,6 +50,17 @@ var config = {
             forecastUrls: {
                 byCoordinates: 'https://api.aerisapi.com/forecasts/#$%REPLACE%$#?from=today&to=+5day&limit=50&filter=daynight&client_id=pfDGPRSS5D3I6Ixo5bYNb&client_secret=IAIzVEk5GBolHBFk39CeIUPFlHXtr6WiZNFtxxuv'
             }
+        },
+        {
+            name: 'worldweatheronline',
+            protocol: 'http',
+            isActive: true,
+            currentWeatherUrls: {
+                byCoordinates: 'http://api.worldweatheronline.com/premium/v1/weather.ashx?key=8f53b968759f48c083f213632182510&q=#$%REPLACE%$#&num_of_days=1&tp=24&format=json&fbclid=IwAR3y3AkNyCm25KOmOl-NQPHdGMcnYceAQuEfBKK6nT-48wRh6wnA3UCEQvg'
+            },
+            forecastUrls: {
+                byCoordinates: 'http://api.worldweatheronline.com/premium/v1/weather.ashx?key=8f53b968759f48c083f213632182510&q=#$%REPLACE%$#&num_of_days=5&tp=1&format=json&fbclid=IwAR3y3AkNyCm25KOmOl-NQPHdGMcnYceAQuEfBKK6nT-48wRh6wnA3UCEQvg'
+            }
         }
     ]
 };
@@ -473,6 +484,10 @@ function prepareUrl(page, cityMode, isForecastNeeded, place) {
             url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
             break;
         }
+        case 'worldweatheronline': {
+            url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
+            break;
+        }
         default: {
             url = '';
         }
@@ -494,6 +509,10 @@ function initializeWeather(data, page, place) {
         }
         case 'aerisapi': {
             weather = getCurrentWeatherFromAerisApi(data, dateUTC, place);
+            break;
+        }
+        case 'worldweatheronline': {
+            weather = getCurrentWeatherFromWorldWeatherOnline(data, dateUTC, place);
             break;
         }
         default: {
@@ -518,6 +537,10 @@ function initializeForecast(data, page, place) {
         }
         case 'aerisapi': {
             forecast = getForecastFromAerisApi(data, dateUTC, place);
+            break;
+        }
+        case 'worldweatheronline': {
+            forecast = getForecastFromWorldWeatherOnline(data, dateUTC, place);
             break;
         }
         default: {
@@ -575,6 +598,34 @@ function getForecastFromAerisApi(data, dateUTC, place) {
             var weather = new Weather(generateUuid(), _.has(item, 'timestamp') ? item.timestamp * 1000 : null, place.id, _.has(item, 'weatherPrimary') && _.has(item, 'weather') ? getWeatherTypeId(item.weatherPrimary, item.weather) : null, _.has(item, 'windDirDEG') ? getWindDirectionFromDegrees(item.windDirDEG) : null, _.has(item, 'avgTempC') ? item.avgTempC : null, _.has(item, 'minTempC') ? item.minTempC : null, _.has(item, 'maxTempC') ? item.maxTempC : null, null, _.has(item, 'humidity') ? item.humidity : null, _.has(item, 'pressureMB') ? item.pressureMB : null, _.has(item, 'windSpeedKPH') ? convertKilometersPerHourToMetersPerSecond(item.windSpeedKPH) : null, 1);
             forecast.push(weather);
             logger.info(weather);
+        }
+    }
+    return forecast;
+}
+function getCurrentWeatherFromWorldWeatherOnline(data, dateUTC, place) {
+    return new Weather(generateUuid(), dateUTC, place.id, null, _.has(data, 'data.current_condition[0].winddirDegree') ? getWindDirectionFromDegrees(data.data.current_condition[0].winddirDegree) : null, _.has(data, 'data.current_condition[0].temp_C') ? +data.data.current_condition[0].temp_C : null, null, null, _.has(data, 'data.current_condition[0].cloudcover') ? +data.data.current_condition[0].cloudcover : null, _.has(data, 'data.current_condition[0].humidity') ? +data.data.current_condition[0].humidity : null, _.has(data, 'data.current_condition[0].pressure') ? +data.data.current_condition[0].pressure : null, _.has(data, 'data.current_condition[0].windspeedKmph') ? convertKilometersPerHourToMetersPerSecond(data.data.current_condition[0].windspeedKmph) : null, 0);
+}
+function getForecastFromWorldWeatherOnline(data, dateUTC, place) {
+    var forecast = [];
+    if (_.has(data, 'data.weather')) {
+        var weatherArray = data.data.weather;
+        var startDate = new Date(dateUTC);
+        startDate.setHours(0);
+        startDate.setMinutes(0);
+        startDate.setMilliseconds(0);
+        startDate.setDate(startDate.getDate() + 1);
+        for (var i = 1; i < weatherArray.length; i++) {
+            if (_.has(weatherArray[i], 'hourly')) {
+                for (var h = 0; h < weatherArray[i].hourly.length; h++) {
+                    var weather = new Weather(generateUuid(), startDate.setHours(h), place.id, null, _.has(weatherArray[i].hourly[h], 'winddirDegree') ? getWindDirectionFromDegrees(weatherArray[i].hourly[h].winddirDegree) : null, _.has(weatherArray[i].hourly[h], 'tempC') ? +weatherArray[i].hourly[h].tempC : null, null, null, _.has(weatherArray[i].hourly[h], 'cloudcover') ? +weatherArray[i].hourly[h].cloudcover : null, _.has(weatherArray[i].hourly[h], 'humidity') ? +weatherArray[i].hourly[h].humidity : null, _.has(weatherArray[i].hourly[h], 'pressure') ? +weatherArray[i].hourly[h].pressure : null, _.has(weatherArray[i].hourly[h], 'windspeedKmph') ? convertKilometersPerHourToMetersPerSecond(weatherArray[i].hourly[h].windspeedKmph) : null, 1);
+                    forecast.push(weather);
+                    logger.info(weather);
+                }
+            }
+            startDate.setHours(0);
+            startDate.setMinutes(0);
+            startDate.setMilliseconds(0);
+            startDate.setDate(startDate.getDate() + 1);
         }
     }
     return forecast;
