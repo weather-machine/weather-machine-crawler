@@ -235,13 +235,13 @@ var Place = /** @class */ (function () {
     });
     return Place;
 }());
-var weatherType = /** @class */ (function () {
-    function weatherType(id, main, description) {
+var WeatherType = /** @class */ (function () {
+    function WeatherType(id, main, description) {
         this._id = id;
         this._main = main;
         this._description = description;
     }
-    Object.defineProperty(weatherType.prototype, "id", {
+    Object.defineProperty(WeatherType.prototype, "id", {
         get: function () {
             return this._id;
         },
@@ -251,7 +251,7 @@ var weatherType = /** @class */ (function () {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(weatherType.prototype, "main", {
+    Object.defineProperty(WeatherType.prototype, "main", {
         get: function () {
             return this._main;
         },
@@ -261,7 +261,7 @@ var weatherType = /** @class */ (function () {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(weatherType.prototype, "description", {
+    Object.defineProperty(WeatherType.prototype, "description", {
         get: function () {
             return this._description;
         },
@@ -271,19 +271,27 @@ var weatherType = /** @class */ (function () {
         enumerable: true,
         configurable: true
     });
-    return weatherType;
+    return WeatherType;
 }());
-var windDirection;
-(function (windDirection) {
-    windDirection[windDirection["N"] = 1] = "N";
-    windDirection[windDirection["E"] = 2] = "E";
-    windDirection[windDirection["S"] = 3] = "S";
-    windDirection[windDirection["W"] = 4] = "W";
-    windDirection[windDirection["NE"] = 5] = "NE";
-    windDirection[windDirection["NW"] = 6] = "NW";
-    windDirection[windDirection["SE"] = 7] = "SE";
-    windDirection[windDirection["SW"] = 8] = "SW";
-})(windDirection || (windDirection = {}));
+var WindDirection;
+(function (WindDirection) {
+    WindDirection[WindDirection["N"] = 1] = "N";
+    WindDirection[WindDirection["NNE"] = 2] = "NNE";
+    WindDirection[WindDirection["NE"] = 3] = "NE";
+    WindDirection[WindDirection["ENE"] = 4] = "ENE";
+    WindDirection[WindDirection["E"] = 5] = "E";
+    WindDirection[WindDirection["ESE"] = 6] = "ESE";
+    WindDirection[WindDirection["SE"] = 7] = "SE";
+    WindDirection[WindDirection["SSE"] = 8] = "SSE";
+    WindDirection[WindDirection["S"] = 9] = "S";
+    WindDirection[WindDirection["SSW"] = 10] = "SSW";
+    WindDirection[WindDirection["SW"] = 11] = "SW";
+    WindDirection[WindDirection["WSW"] = 12] = "WSW";
+    WindDirection[WindDirection["W"] = 13] = "W";
+    WindDirection[WindDirection["WNW"] = 14] = "WNW";
+    WindDirection[WindDirection["NW"] = 15] = "NW";
+    WindDirection[WindDirection["NNW"] = 16] = "NNW";
+})(WindDirection || (WindDirection = {}));
 function generateUuid() {
     var d = new Date().getTime();
     if (Date.now) {
@@ -297,9 +305,24 @@ function generateUuid() {
 }
 var weathers = [];
 var places = [];
+var weatherTypes = [];
 function initializePlaces() {
     places.push(new Place(1, 'London', 0, 0, 'uk'));
     places.push(new Place(2, 'Warsaw', 0, 0, 'pl'));
+}
+function getWeatherTypeId(main, description) {
+    var weatherTypeId = -1;
+    for (var _i = 0, weatherTypes_1 = weatherTypes; _i < weatherTypes_1.length; _i++) {
+        var weatherType = weatherTypes_1[_i];
+        if (weatherType.main === main && weatherType.description === description) {
+            weatherTypeId = weatherType.id;
+        }
+    }
+    if (weatherTypeId < 0) {
+        weatherTypeId = weatherTypes.length < 1 ? 1 : _.maxBy(weatherTypes, '_id')._id + 1;
+        weatherTypes.push(new WeatherType(weatherTypeId, main, description));
+    }
+    return weatherTypeId;
 }
 function gatherData() {
     for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
@@ -382,14 +405,14 @@ function initializeForecast(data, page, place) {
     return forecast;
 }
 function getCurrentWeatherFromOpenWeatherMap(data, dateUTC, place) {
-    return new Weather(generateUuid(), dateUTC, place.id, 1, 1, _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null, _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null, _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null, _.has(data, 'clouds.all') ? data.clouds.all : null, _.has(data, 'main.humidity') ? data.main.humidity : null, _.has(data, 'main.pressure') ? data.main.pressure : null, _.has(data, 'wind.speed') ? data.wind.speed : null, 0);
+    return new Weather(generateUuid(), dateUTC, place.id, _.has(data, 'weather[0].main') && _.has(data, 'weather[0].description') ? getWeatherTypeId(data.weather[0].main, data.weather[0].description) : null, _.has(data, 'wind.deg') ? getWindDirectionFromDegrees(data.wind.deg) : null, _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null, _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null, _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null, _.has(data, 'clouds.all') ? data.clouds.all : null, _.has(data, 'main.humidity') ? data.main.humidity : null, _.has(data, 'main.pressure') ? data.main.pressure : null, _.has(data, 'wind.speed') ? data.wind.speed : null, 0);
 }
 function getForecastFromOpenWeatherMap(data, dateUTC, place) {
     var forecast = [];
     if (_.has(data, 'list')) {
         for (var _i = 0, _a = data.list; _i < _a.length; _i++) {
             var item = _a[_i];
-            var weather = new Weather(generateUuid(), _.has(item, 'dt') ? item.dt * 1000 : null, place.id, 1, 1, _.has(item, 'main.temp') ? convertToCelsius(item.main.temp) : null, _.has(item, 'main.temp_max') ? convertToCelsius(item.main.temp_max) : null, _.has(item, 'main.temp_min') ? convertToCelsius(item.main.temp_min) : null, _.has(item, 'clouds.all') ? item.clouds.all : null, _.has(item, 'main.humidity') ? item.main.humidity : null, _.has(item, 'main.pressure') ? item.main.pressure : null, _.has(item, 'wind.speed') ? item.wind.speed : null, 1);
+            var weather = new Weather(generateUuid(), _.has(item, 'dt') ? item.dt * 1000 : null, place.id, _.has(item, 'weather[0].main') && _.has(item, 'weather[0].description') ? getWeatherTypeId(item.weather[0].main, item.weather[0].description) : null, _.has(item, 'wind.deg') ? getWindDirectionFromDegrees(item.wind.deg) : null, _.has(item, 'main.temp') ? convertToCelsius(item.main.temp) : null, _.has(item, 'main.temp_max') ? convertToCelsius(item.main.temp_max) : null, _.has(item, 'main.temp_min') ? convertToCelsius(item.main.temp_min) : null, _.has(item, 'clouds.all') ? item.clouds.all : null, _.has(item, 'main.humidity') ? item.main.humidity : null, _.has(item, 'main.pressure') ? item.main.pressure : null, _.has(item, 'wind.speed') ? item.wind.speed : null, 1);
             forecast.push(weather);
             logger.info(weather);
         }
@@ -401,6 +424,40 @@ function roundToTwoDecimals(num) {
 }
 function convertToCelsius(temperature) {
     return roundToTwoDecimals(temperature - 273.15);
+}
+function getWindDirectionFromDegrees(degrees) {
+    if (degrees >= 348.75 || degrees <= 11.25)
+        return WindDirection.N;
+    if (degrees > 11.25 && degrees < 33.75)
+        return WindDirection.NNE;
+    if (degrees >= 33.75 && degrees <= 56.25)
+        return WindDirection.NE;
+    if (degrees > 56.25 && degrees < 78.75)
+        return WindDirection.ENE;
+    if (degrees >= 78.75 && degrees <= 101.25)
+        return WindDirection.E;
+    if (degrees > 101.25 && degrees < 123.75)
+        return WindDirection.ESE;
+    if (degrees >= 123.75 && degrees <= 146.25)
+        return WindDirection.SE;
+    if (degrees > 146.25 && degrees < 168.75)
+        return WindDirection.SSE;
+    if (degrees >= 168.75 && degrees <= 191.25)
+        return WindDirection.S;
+    if (degrees > 191.25 && degrees < 213.75)
+        return WindDirection.SSW;
+    if (degrees >= 213.75 && degrees <= 236.25)
+        return WindDirection.SW;
+    if (degrees > 236.25 && degrees < 258.75)
+        return WindDirection.WSW;
+    if (degrees >= 258.75 && degrees <= 281.25)
+        return WindDirection.W;
+    if (degrees > 281.25 && degrees < 303.75)
+        return WindDirection.WNW;
+    if (degrees >= 303.75 && degrees <= 326.25)
+        return WindDirection.NW;
+    if (degrees > 326.25 && degrees < 348.75)
+        return WindDirection.NNW;
 }
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');

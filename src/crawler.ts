@@ -223,7 +223,7 @@ class Place {
     }
 }
 
-class weatherType {
+class WeatherType {
     private _id: number;
     private _main: string;
     private _description: string;
@@ -259,15 +259,23 @@ class weatherType {
     }
 }
 
-enum windDirection {
+enum WindDirection {
     N = 1,
-    E = 2,
-    S = 3,
-    W = 4,
-    NE = 5,
-    NW = 6,
+    NNE = 2,
+    NE = 3,
+    ENE = 4,
+    E = 5,
+    ESE = 6,
     SE = 7,
-    SW = 8
+    SSE = 8,
+    S = 9,
+    SSW = 10,
+    SW = 11,
+    WSW = 12,
+    W = 13,
+    WNW = 14,
+    NW = 15,
+    NNW = 16
 }
 
 function generateUuid() {
@@ -284,10 +292,26 @@ function generateUuid() {
 
 let weathers: Weather[] = [];
 let places: Place[] = [];
+let weatherTypes: WeatherType[] = [];
 
 function initializePlaces() {
     places.push(new Place(1, 'London', 0, 0, 'uk'));
     places.push(new Place(2, 'Warsaw', 0, 0, 'pl'));
+}
+
+function getWeatherTypeId(main: string, description: string) {
+    let weatherTypeId: number = -1;
+    for (let weatherType of weatherTypes) {
+        if (weatherType.main === main && weatherType.description === description) {
+            weatherTypeId = weatherType.id;
+        }
+    }
+    if (weatherTypeId < 0) {
+        weatherTypeId = weatherTypes.length < 1 ? 1 : _.maxBy(weatherTypes, '_id')._id + 1;
+        weatherTypes.push(new WeatherType(weatherTypeId, main, description));
+    }
+
+    return weatherTypeId;
 }
 
 function gatherData() {
@@ -378,8 +402,8 @@ function getCurrentWeatherFromOpenWeatherMap(data: any, dateUTC: number, place: 
         generateUuid(),
         dateUTC,
         place.id,
-        1,
-        1,
+        _.has(data, 'weather[0].main') && _.has(data, 'weather[0].description') ? getWeatherTypeId(data.weather[0].main, data.weather[0].description) : null,
+        _.has(data, 'wind.deg') ? getWindDirectionFromDegrees(data.wind.deg) : null,
         _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null,
         _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null,
         _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null,
@@ -400,8 +424,8 @@ function getForecastFromOpenWeatherMap(data: any, dateUTC: number, place: Place)
                 generateUuid(),
                 _.has(item, 'dt') ? item.dt * 1000 : null,
                 place.id,
-                1,
-                1,
+                _.has(item, 'weather[0].main') && _.has(item, 'weather[0].description') ? getWeatherTypeId(item.weather[0].main, item.weather[0].description) : null,
+                _.has(item, 'wind.deg') ? getWindDirectionFromDegrees(item.wind.deg) : null,
                 _.has(item, 'main.temp') ? convertToCelsius(item.main.temp) : null,
                 _.has(item, 'main.temp_max') ? convertToCelsius(item.main.temp_max) : null,
                 _.has(item, 'main.temp_min') ? convertToCelsius(item.main.temp_min) : null,
@@ -425,6 +449,25 @@ function roundToTwoDecimals(num: number) {
 
 function convertToCelsius(temperature: number) {
     return roundToTwoDecimals(temperature - 273.15);
+}
+
+function getWindDirectionFromDegrees(degrees: number) {
+    if (degrees >= 348.75 || degrees <= 11.25) return WindDirection.N;
+    if (degrees > 11.25 && degrees < 33.75) return WindDirection.NNE;
+    if (degrees >= 33.75 && degrees <= 56.25) return WindDirection.NE;
+    if (degrees > 56.25 && degrees < 78.75) return WindDirection.ENE;
+    if (degrees >= 78.75 && degrees <= 101.25) return WindDirection.E;
+    if (degrees > 101.25 && degrees < 123.75) return WindDirection.ESE;
+    if (degrees >= 123.75 && degrees <= 146.25) return WindDirection.SE;
+    if (degrees > 146.25 && degrees < 168.75) return WindDirection.SSE;
+    if (degrees >= 168.75 && degrees <= 191.25) return WindDirection.S;
+    if (degrees > 191.25 && degrees < 213.75) return WindDirection.SSW;
+    if (degrees >= 213.75 && degrees <= 236.25) return WindDirection.SW;
+    if (degrees > 236.25 && degrees < 258.75) return WindDirection.WSW;
+    if (degrees >= 258.75 && degrees <= 281.25) return WindDirection.W;
+    if (degrees > 281.25 && degrees < 303.75) return WindDirection.WNW;
+    if (degrees >= 303.75 && degrees <= 326.25) return WindDirection.NW;
+    if (degrees > 326.25 && degrees < 348.75) return WindDirection.NNW;
 }
 
 http.createServer().listen(config.port, config.ip);
