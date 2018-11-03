@@ -28,7 +28,7 @@ var config = {
     ]
 };
 var Weather = /** @class */ (function () {
-    function Weather(uuid, date, placeId, weatherTypeId, windDirectionId, temperature, temperatureMax, temperatureMin, skyDescription, humidityPercent, pressureMb, windSpeed, isForecast) {
+    function Weather(uuid, date, placeId, weatherTypeId, windDirectionId, temperature, temperatureMax, temperatureMin, cloudCover, humidityPercent, pressureMb, windSpeed, isForecast) {
         this._uuid = uuid;
         this._date = date;
         this._placeId = placeId;
@@ -37,7 +37,7 @@ var Weather = /** @class */ (function () {
         this._temperature = temperature;
         this._temperatureMax = temperatureMax;
         this._temperatureMin = temperatureMin;
-        this._skyDescription = skyDescription;
+        this._cloudCover = cloudCover;
         this._humidityPercent = humidityPercent;
         this._pressureMb = pressureMb;
         this._windSpeed = windSpeed;
@@ -123,12 +123,12 @@ var Weather = /** @class */ (function () {
         enumerable: true,
         configurable: true
     });
-    Object.defineProperty(Weather.prototype, "skyDescription", {
+    Object.defineProperty(Weather.prototype, "cloudCover", {
         get: function () {
-            return this._skyDescription;
+            return this._cloudCover;
         },
         set: function (value) {
-            this._skyDescription = value;
+            this._cloudCover = value;
         },
         enumerable: true,
         configurable: true

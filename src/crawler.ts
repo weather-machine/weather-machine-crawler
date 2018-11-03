@@ -40,13 +40,13 @@ class Weather {
     private _temperature: number;
     private _temperatureMax: number;
     private _temperatureMin: number;
-    private _skyDescription: number;
+    private _cloudCover: number;
     private _humidityPercent: number;
     private _pressureMb: number;
     private _windSpeed: number;
     private _isForecast: number;
 
-    constructor(uuid: string, date: number, placeId: number, weatherTypeId: number, windDirectionId: number, temperature: number, temperatureMax: number, temperatureMin: number, skyDescription: number, humidityPercent: number, pressureMb: number, windSpeed: number, isForecast: number) {
+    constructor(uuid: string, date: number, placeId: number, weatherTypeId: number, windDirectionId: number, temperature: number, temperatureMax: number, temperatureMin: number, cloudCover: number, humidityPercent: number, pressureMb: number, windSpeed: number, isForecast: number) {
         this._uuid = uuid;
         this._date = date;
         this._placeId = placeId;
@@ -55,7 +55,7 @@ class Weather {
         this._temperature = temperature;
         this._temperatureMax = temperatureMax;
         this._temperatureMin = temperatureMin;
-        this._skyDescription = skyDescription;
+        this._cloudCover = cloudCover;
         this._humidityPercent = humidityPercent;
         this._pressureMb = pressureMb;
         this._windSpeed = windSpeed;
@@ -126,12 +126,12 @@ class Weather {
         this._temperatureMin = value;
     }
 
-    get skyDescription(): number {
-        return this._skyDescription;
+    get cloudCover(): number {
+        return this._cloudCover;
     }
 
-    set skyDescription(value: number) {
-        this._skyDescription = value;
+    set cloudCover(value: number) {
+        this._cloudCover = value;
     }
 
     get humidityPercent(): number {
