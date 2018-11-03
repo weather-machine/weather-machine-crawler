@@ -2,20 +2,37 @@
 let http = require('http');
 // @ts-ignore
 let _ = require('lodash');
+// @ts-ignore
+let log4js = require('log4js');
+
+log4js.configure({
+    appenders: { info: { type: 'file', filename: 'crawler.log' } },
+    categories: { default: { appenders: ['info'], level: 'info' } }
+});
+
+const logger = log4js.getLogger('cheese');
 
 const config = {
     ip: '127.0.0.1',
     port: 1337,
-    intervalDuration: 2000,
+    intervalDuration: 10000,
     pages: [
         {
             name: 'openweathermap',
-            url: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q='
+            currentWeatherUrls: {
+                byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=', // f.e. 'Warsaw'
+                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&', // f.e.: lat=35&lon=139
+            },
+            forecastUrls: {
+                byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=', // f.e. 'Warsaw'
+                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&' // f.e.: lat=35&lon=139
+            }
         }
     ]
 };
 
 class Weather {
+    private _uuid: string;
     private _date: number;
     private _placeId: number;
     private _weatherTypeId: number;
@@ -23,13 +40,14 @@ class Weather {
     private _temperature: number;
     private _temperatureMax: number;
     private _temperatureMin: number;
-    private _skyDescription: string;
+    private _skyDescription: number;
     private _humidityPercent: number;
     private _pressureMb: number;
     private _windSpeed: number;
     private _isForecast: number;
 
-    constructor(date: number, placeId: number, weatherTypeId: number, windDirectionId: number, temperature: number, temperatureMax: number, temperatureMin: number, skyDescription: string, humidityPercent: number, pressureMb: number, windSpeed: number, isForecast: number) {
+    constructor(uuid: string, date: number, placeId: number, weatherTypeId: number, windDirectionId: number, temperature: number, temperatureMax: number, temperatureMin: number, skyDescription: number, humidityPercent: number, pressureMb: number, windSpeed: number, isForecast: number) {
+        this._uuid = uuid;
         this._date = date;
         this._placeId = placeId;
         this._weatherTypeId = weatherTypeId;
@@ -42,6 +60,14 @@ class Weather {
         this._pressureMb = pressureMb;
         this._windSpeed = windSpeed;
         this._isForecast = isForecast;
+    }
+
+    get uuid(): string {
+        return this._uuid;
+    }
+
+    set uuid(value: string) {
+        this._uuid = value;
     }
 
     get date(): number {
@@ -100,11 +126,11 @@ class Weather {
         this._temperatureMin = value;
     }
 
-    get skyDescription(): string {
+    get skyDescription(): number {
         return this._skyDescription;
     }
 
-    set skyDescription(value: string) {
+    set skyDescription(value: number) {
         this._skyDescription = value;
     }
 
@@ -234,56 +260,130 @@ class weatherType {
 }
 
 enum windDirection {
-    N = 'N',
-    E = 'E',
-    S = 'S',
-    W = 'W',
-    NE = 'NE',
-    NW = 'NW',
-    SE = 'SE',
-    SW = 'SW'
+    N = 1,
+    E = 2,
+    S = 3,
+    W = 4,
+    NE = 5,
+    NW = 6,
+    SE = 7,
+    SW = 8
+}
+
+function generateUuid() {
+    let d = new Date().getTime();
+    if(Date.now){
+        d = Date.now(); //high-precision timer
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        let r = (d + Math.random()*16)%16 | 0;
+        d = Math.floor(d/16);
+        return (c=='x' ? r : (r&0x3|0x8)).toString(16);
+    });
 }
 
 let weathers: Weather[] = [];
 let places: Place[] = [];
 
 function initializePlaces() {
-    let place = new Place(1, 'London', 0, 0, 'uk');
-    places.push(place);
+    places.push(new Place(1, 'London', 0, 0, 'uk'));
+    places.push(new Place(2, 'Warsaw', 0, 0, 'pl'));
 }
 
 function gatherData() {
     for (let page of config.pages) {
         for (let place of places) {
-            http.get(page.url + place.name, function (res) {
-                let data: string = '';
-                res.on('data', function (chunk) {
-                    data += chunk;
-                });
-                res.on('end', function () {
-                    weathers.push(initializeWeather(JSON.parse(data), page));
-                    console.log(weathers);
-                });
-            }).on('error', function (error) {
-                console.log('error with: ' + page + '\n' + error.message);
-            });
+            getDataFromExternalApi(page, place, false, true);
+            getDataFromExternalApi(page, place, true, true);
         }
     }
 }
 
-function initializeWeather(data: any, page: any) {
+function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boolean, cityMode: boolean) {
+    let url: string = '';
+    if (isForecastNeeded) {
+        if (cityMode) {
+            url = page.forecastUrls.byCity + place.name;
+        } else {
+            url = page.forecastUrls.byCoordinates;
+        }
+    } else {
+        if (cityMode) {
+            url = page.currentWeatherUrls.byCity + place.name;
+        } else {
+            url = page.currentWeatherUrls.byCoordinates;
+        }
+    }
+
+    http.get(url, function (res) {
+        let data: string = '';
+        res.on('data', function (chunk) {
+            data += chunk;
+        });
+        res.on('end', function () {
+            if (isForecastNeeded) {
+                weathers = [ ...weathers, ...initializeForecast(JSON.parse(data), page, place)];
+            } else {
+                weathers.push(initializeWeather(JSON.parse(data), page, place));
+            }
+        });
+        console.log('request success', url);
+        logger.info('request success', url);
+    }).on('error', function (error) {
+        logger.info('request failed', url);
+        logger.info('error with: ' + page + '\n' + error.message);
+    });
+}
+
+function initializeWeather(data: any, page: any, place: Place) {
+    let weather: Weather;
     let date = new Date();
     let dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
 
+    switch (page.name) {
+        case 'openweathermap': {
+            weather = getCurrentWeatherFromOpenWeatherMap(data, dateUTC, place);
+            getForecastFromOpenWeatherMap(data, dateUTC, place);
+            break;
+        }
+        default: {
+            weather = null;
+        }
+    }
+    logger.info(weather);
+
+    return weather;
+}
+
+function initializeForecast(data: any, page: any, place: Place) {
+    let forecast: Weather[] = [];
+    let date = new Date();
+    let dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+
+    switch (page.name) {
+        case 'openweathermap': {
+            forecast = getForecastFromOpenWeatherMap(data, dateUTC, place);
+            break;
+        }
+        default: {
+            forecast = [];
+        }
+    }
+
+    return forecast;
+}
+
+function getCurrentWeatherFromOpenWeatherMap(data: any, dateUTC: number, place: Place) {
     return new Weather(
+        generateUuid(),
         dateUTC,
-        1,
+        place.id,
         1,
         1,
         _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null,
         _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null,
         _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null,
-        'it will be find :D',
+        _.has(data, 'clouds.all') ? data.clouds.all : null,
         _.has(data, 'main.humidity') ? data.main.humidity : null,
         _.has(data, 'main.pressure') ? data.main.pressure : null,
         _.has(data, 'wind.speed') ? data.wind.speed : null,
@@ -291,11 +391,44 @@ function initializeWeather(data: any, page: any) {
     );
 }
 
+function getForecastFromOpenWeatherMap(data: any, dateUTC: number, place: Place) {
+    let forecast: Weather[] = [];
+
+    if (_.has(data, 'list')) {
+        for (let item of data.list) {
+            let weather = new Weather(
+                generateUuid(),
+                _.has(item, 'dt') ? item.dt * 1000 : null,
+                place.id,
+                1,
+                1,
+                _.has(item, 'main.temp') ? convertToCelsius(item.main.temp) : null,
+                _.has(item, 'main.temp_max') ? convertToCelsius(item.main.temp_max) : null,
+                _.has(item, 'main.temp_min') ? convertToCelsius(item.main.temp_min) : null,
+                _.has(item, 'clouds.all') ? item.clouds.all : null,
+                _.has(item, 'main.humidity') ? item.main.humidity : null,
+                _.has(item, 'main.pressure') ? item.main.pressure : null,
+                _.has(item, 'wind.speed') ? item.wind.speed : null,
+                1
+            );
+            forecast.push(weather);
+            logger.info(weather);
+        }
+    }
+
+    return forecast;
+}
+
+function roundToTwoDecimals(num: number) {
+    return (Math.round(num * 100) / 100);
+}
+
 function convertToCelsius(temperature: number) {
-    return (temperature - 273.15);
+    return roundToTwoDecimals(temperature - 273.15);
 }
 
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
+logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
 initializePlaces();
 setInterval(gatherData, config.intervalDuration);
