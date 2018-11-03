@@ -22,7 +22,7 @@ const config = {
         {
             name: 'openweathermap',
             protocol: 'http',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#', // f.e.: lat=35&lon=139
@@ -35,12 +35,23 @@ const config = {
         {
             name: 'darksky',
             protocol: 'https',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
             },
             forecastUrls: {
                 byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
+            }
+        },
+        {
+            name: 'aerisapi',
+            protocol: 'https',
+            isActive: true,
+            currentWeatherUrls: {
+                byCoordinates: 'https://api.aerisapi.com/forecasts/#$%REPLACE%$#?from=today&to=+1day&limit=1&filter=daynight&client_id=pfDGPRSS5D3I6Ixo5bYNb&client_secret=IAIzVEk5GBolHBFk39CeIUPFlHXtr6WiZNFtxxuv'
+            },
+            forecastUrls: {
+                byCoordinates: 'https://api.aerisapi.com/forecasts/#$%REPLACE%$#?from=today&to=+5day&limit=50&filter=daynight&client_id=pfDGPRSS5D3I6Ixo5bYNb&client_secret=IAIzVEk5GBolHBFk39CeIUPFlHXtr6WiZNFtxxuv'
             }
         }
     ]
@@ -413,6 +424,10 @@ function prepareUrl(page: any, cityMode: boolean, isForecastNeeded: boolean, pla
             url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
             break;
         }
+        case 'aerisapi': {
+            url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
+            break;
+        }
         default: {
             url = '';
         }
@@ -433,6 +448,10 @@ function initializeWeather(data: any, page: any, place: Place) {
         }
         case 'darksky': {
             weather = getCurrentWeatherFromDarkSky(data, dateUTC, place);
+            break;
+        }
+        case 'aerisapi': {
+            weather = getCurrentWeatherFromAerisApi(data, dateUTC, place);
             break;
         }
         default: {
@@ -456,6 +475,10 @@ function initializeForecast(data: any, page: any, place: Place) {
         }
         case 'darksky': {
             forecast = getForecastFromDarkSky(data, dateUTC, place);
+            break;
+        }
+        case 'aerisapi': {
+            forecast = getForecastFromAerisApi(data, dateUTC, place);
             break;
         }
         default: {
@@ -579,6 +602,52 @@ function getForecastFromDarkSky(data: any, dateUTC: number, place: Place) {
     return forecast;
 }
 
+function getCurrentWeatherFromAerisApi(data: any, dateUTC: number, place: Place) {
+    return new Weather(
+        generateUuid(),
+        dateUTC,
+        place.id,
+        _.has(data, 'response[0].periods[0].weatherPrimary') && _.has(data, 'response[0].periods[0].weather') ? getWeatherTypeId(data.response[0].periods[0].weatherPrimary, data.response[0].periods[0].weather) : null,
+        _.has(data, 'response[0].periods[0].windDirDEG') ? getWindDirectionFromDegrees(data.response[0].periods[0].windDirDEG) : null,
+        _.has(data, 'response[0].periods[0].avgTempC') ? data.response[0].periods[0].avgTempC : null,
+        _.has(data, 'response[0].periods[0].minTempC') ? data.response[0].periods[0].minTempC : null,
+        _.has(data, 'response[0].periods[0].maxTempC') ? data.response[0].periods[0].maxTempC : null,
+        null,
+        _.has(data, 'response[0].periods[0].humidity') ? data.response[0].periods[0].humidity : null,
+        _.has(data, 'response[0].periods[0].pressureMB') ? data.response[0].periods[0].pressureMB : null,
+        _.has(data, 'response[0].periods[0].windSpeedKPH') ? convertKilometersPerHourToMetersPerSecond(data.response[0].periods[0].windSpeedKPH) : null,
+        0
+    );
+}
+
+function getForecastFromAerisApi(data: any, dateUTC: number, place: Place) {
+    let forecast: Weather[] = [];
+
+    if (_.has(data, 'response[0].periods')) {
+        for (let item of data.response[0].periods) {
+            let weather = new Weather(
+                generateUuid(),
+                _.has(item, 'timestamp') ? item.timestamp * 1000 : null,
+                place.id,
+                _.has(item, 'weatherPrimary') && _.has(item, 'weather') ? getWeatherTypeId(item.weatherPrimary, item.weather) : null,
+                _.has(item, 'windDirDEG') ? getWindDirectionFromDegrees(item.windDirDEG) : null,
+                _.has(item, 'avgTempC') ? item.avgTempC : null,
+                _.has(item, 'minTempC') ? item.minTempC : null,
+                _.has(item, 'maxTempC') ? item.maxTempC : null,
+                null,
+                _.has(item, 'humidity') ? item.humidity : null,
+                _.has(item, 'pressureMB') ? item.pressureMB : null,
+                _.has(item, 'windSpeedKPH') ? convertKilometersPerHourToMetersPerSecond(item.windSpeedKPH) : null,
+                1
+            );
+            forecast.push(weather);
+            logger.info(weather);
+        }
+    }
+
+    return forecast;
+}
+
 function roundToTwoDecimals(num: number) {
     return (Math.round(num * 100) / 100);
 }
@@ -593,6 +662,10 @@ function convertFahrenheitToCelsius(temperature: number) {
 
 function convertMilesPerHourToMetersPerSecond(value: number) {
     return roundToTwoDecimals(value * 0.44704);
+}
+
+function convertKilometersPerHourToMetersPerSecond(value: number) {
+    return roundToTwoDecimals(value / 3.6);
 }
 
 function getWindDirectionFromDegrees(degrees: number) {
