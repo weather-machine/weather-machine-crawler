@@ -350,14 +350,39 @@ function getWeatherTypeId(main, description) {
     }
     return weatherTypeId;
 }
-function gatherData() {
-    for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
-        var page = _a[_i];
-        if (page.isActive) {
-            for (var _b = 0, places_1 = places; _b < places_1.length; _b++) {
-                var place = places_1[_b];
-                getDataFromExternalApi(page, place, false);
-                getDataFromExternalApi(page, place, true);
+function gatherData(specificPlace) {
+    if (specificPlace === void 0) { specificPlace = null; }
+    console.log('Crawling...');
+    logger.info('Crawling...');
+    if (specificPlace === null) {
+        var _loop_1 = function (page) {
+            if (page.isActive) {
+                var _loop_2 = function (i) {
+                    setTimeout(function () {
+                        console.log('Page: ' + page.name, Date.now());
+                        logger.info('Page: ' + page.name, Date.now());
+                        getDataFromExternalApi(page, places[i], false);
+                        getDataFromExternalApi(page, places[i], true);
+                    }, i * 1000);
+                };
+                for (var i = 0; i < places.length; i++) {
+                    _loop_2(i);
+                }
+            }
+        };
+        for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
+            var page = _a[_i];
+            _loop_1(page);
+        }
+    }
+    else {
+        for (var _b = 0, _c = config.pages; _b < _c.length; _b++) {
+            var page = _c[_b];
+            if (page.isActive) {
+                console.log('Page: ' + page.name, Date.now());
+                logger.info('Page: ' + page.name, Date.now());
+                getDataFromExternalApi(page, specificPlace, false);
+                getDataFromExternalApi(page, specificPlace, true);
             }
         }
     }
@@ -367,6 +392,8 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
     if (page.protocol === 'https') {
         https.get(url, function (res) {
             var data = '';
+            console.log('request started', url);
+            logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });
@@ -388,6 +415,8 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
     else {
         http.get(url, function (res) {
             var data = '';
+            console.log('request started', url);
+            logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });

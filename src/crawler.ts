@@ -340,12 +340,29 @@ function getWeatherTypeId(main: string, description: string) {
     return weatherTypeId;
 }
 
-function gatherData() {
-    for (let page of config.pages) {
-        if (page.isActive) {
-            for (let place of places) {
-                getDataFromExternalApi(page, place, false);
-                getDataFromExternalApi(page, place, true);
+function gatherData(specificPlace: Place = null) {
+    console.log('Crawling...');
+    logger.info('Crawling...');
+    if (specificPlace === null) {
+        for (let page of config.pages) {
+            if (page.isActive) {
+                for (let i = 0; i < places.length; i++) {
+                    setTimeout(function(){
+                        console.log('Page: ' + page.name, Date.now());
+                        logger.info('Page: ' + page.name, Date.now());
+                        getDataFromExternalApi(page, places[i], false);
+                        getDataFromExternalApi(page, places[i], true);
+                    },i * 1000);
+                }
+            }
+        }
+    } else {
+        for (let page of config.pages) {
+            if (page.isActive) {
+                console.log('Page: ' + page.name, Date.now());
+                logger.info('Page: ' + page.name, Date.now());
+                getDataFromExternalApi(page, specificPlace, false);
+                getDataFromExternalApi(page, specificPlace, true);
             }
         }
     }
@@ -357,6 +374,8 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
     if (page.protocol === 'https') {
         https.get(url, function (res) {
             let data: string = '';
+            console.log('request started', url);
+            logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });
@@ -376,6 +395,8 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
     } else {
         http.get(url, function (res) {
             let data: string = '';
+            console.log('request started', url);
+            logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });
