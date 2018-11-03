@@ -1,6 +1,8 @@
 // @ts-ignore
 var http = require('http');
 // @ts-ignore
+var https = require('https');
+// @ts-ignore
 var _ = require('lodash');
 // @ts-ignore
 var log4js = require('log4js');
@@ -16,13 +18,26 @@ var config = {
     pages: [
         {
             name: 'openweathermap',
+            protocol: 'http',
+            isActive: false,
             currentWeatherUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=',
-                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&',
+                byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
+                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#',
             },
             forecastUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=',
-                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&' // f.e.: lat=35&lon=139
+                byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
+                byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#' // f.e.: lat=35&lon=139
+            }
+        },
+        {
+            name: 'darksky',
+            protocol: 'https',
+            isActive: false,
+            currentWeatherUrls: {
+                byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
+            },
+            forecastUrls: {
+                byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
             }
         }
     ]
@@ -307,8 +322,8 @@ var weathers = [];
 var places = [];
 var weatherTypes = [];
 function initializePlaces() {
-    places.push(new Place(1, 'London', 0, 0, 'uk'));
-    places.push(new Place(2, 'Warsaw', 0, 0, 'pl'));
+    places.push(new Place(1, 'London', 51.5100, -0.1300, 'uk'));
+    places.push(new Place(2, 'Warsaw', 52.2300, 21.0100, 'pl'));
 }
 function getWeatherTypeId(main, description) {
     var weatherTypeId = -1;
@@ -327,18 +342,66 @@ function getWeatherTypeId(main, description) {
 function gatherData() {
     for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
         var page = _a[_i];
-        for (var _b = 0, places_1 = places; _b < places_1.length; _b++) {
-            var place = places_1[_b];
-            getDataFromExternalApi(page, place, false, true);
-            getDataFromExternalApi(page, place, true, true);
+        if (page.isActive) {
+            for (var _b = 0, places_1 = places; _b < places_1.length; _b++) {
+                var place = places_1[_b];
+                getDataFromExternalApi(page, place, false);
+                getDataFromExternalApi(page, place, true);
+            }
         }
     }
 }
-function getDataFromExternalApi(page, place, isForecastNeeded, cityMode) {
+function getDataFromExternalApi(page, place, isForecastNeeded) {
+    var url = prepareUrl(page, _.has(page, 'currentWeatherUrls.byCity'), isForecastNeeded, place);
+    if (page.protocol === 'https') {
+        https.get(url, function (res) {
+            var data = '';
+            res.on('data', function (chunk) {
+                data += chunk;
+            });
+            res.on('end', function () {
+                if (isForecastNeeded) {
+                    weathers = weathers.concat(initializeForecast(JSON.parse(data), page, place));
+                }
+                else {
+                    weathers.push(initializeWeather(JSON.parse(data), page, place));
+                }
+            });
+            console.log('request success', url);
+            logger.info('request success', url);
+        }).on('error', function (error) {
+            logger.info('request failed', url);
+            logger.info('error with: ' + page + '\n' + error.message);
+        });
+    }
+    else {
+        http.get(url, function (res) {
+            var data = '';
+            res.on('data', function (chunk) {
+                data += chunk;
+            });
+            res.on('end', function () {
+                if (isForecastNeeded) {
+                    weathers = weathers.concat(initializeForecast(JSON.parse(data), page, place));
+                }
+                else {
+                    weathers.push(initializeWeather(JSON.parse(data), page, place));
+                }
+            });
+            console.log('request success', url);
+            logger.info('request success', url);
+        }).on('error', function (error) {
+            logger.info('request failed', url);
+            logger.info('error with: ' + page + '\n' + error.message);
+        });
+    }
+}
+function prepareUrl(page, cityMode, isForecastNeeded, place) {
     var url = '';
+    var replacePrefix = '#$%REPLACE%$#';
     if (isForecastNeeded) {
         if (cityMode) {
-            url = page.forecastUrls.byCity + place.name;
+            url = page.forecastUrls.byCity;
         }
         else {
             url = page.forecastUrls.byCoordinates;
@@ -346,31 +409,31 @@ function getDataFromExternalApi(page, place, isForecastNeeded, cityMode) {
     }
     else {
         if (cityMode) {
-            url = page.currentWeatherUrls.byCity + place.name;
+            url = page.currentWeatherUrls.byCity;
         }
         else {
             url = page.currentWeatherUrls.byCoordinates;
         }
     }
-    http.get(url, function (res) {
-        var data = '';
-        res.on('data', function (chunk) {
-            data += chunk;
-        });
-        res.on('end', function () {
-            if (isForecastNeeded) {
-                weathers = weathers.concat(initializeForecast(JSON.parse(data), page, place));
+    switch (page.name) {
+        case 'openweathermap': {
+            if (cityMode) {
+                url = url.replace(replacePrefix, place.name);
             }
             else {
-                weathers.push(initializeWeather(JSON.parse(data), page, place));
+                url = url.replace(replacePrefix, 'lat=' + place.latitude + '&lon=' + place.longitude);
             }
-        });
-        console.log('request success', url);
-        logger.info('request success', url);
-    }).on('error', function (error) {
-        logger.info('request failed', url);
-        logger.info('error with: ' + page + '\n' + error.message);
-    });
+            break;
+        }
+        case 'darksky': {
+            url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
+            break;
+        }
+        default: {
+            url = '';
+        }
+    }
+    return url;
 }
 function initializeWeather(data, page, place) {
     var weather;
@@ -379,7 +442,10 @@ function initializeWeather(data, page, place) {
     switch (page.name) {
         case 'openweathermap': {
             weather = getCurrentWeatherFromOpenWeatherMap(data, dateUTC, place);
-            getForecastFromOpenWeatherMap(data, dateUTC, place);
+            break;
+        }
+        case 'darksky': {
+            weather = getCurrentWeatherFromDarkSky(data, dateUTC, place);
             break;
         }
         default: {
@@ -398,6 +464,10 @@ function initializeForecast(data, page, place) {
             forecast = getForecastFromOpenWeatherMap(data, dateUTC, place);
             break;
         }
+        case 'darksky': {
+            forecast = getForecastFromDarkSky(data, dateUTC, place);
+            break;
+        }
         default: {
             forecast = [];
         }
@@ -405,14 +475,37 @@ function initializeForecast(data, page, place) {
     return forecast;
 }
 function getCurrentWeatherFromOpenWeatherMap(data, dateUTC, place) {
-    return new Weather(generateUuid(), dateUTC, place.id, _.has(data, 'weather[0].main') && _.has(data, 'weather[0].description') ? getWeatherTypeId(data.weather[0].main, data.weather[0].description) : null, _.has(data, 'wind.deg') ? getWindDirectionFromDegrees(data.wind.deg) : null, _.has(data, 'main.temp') ? convertToCelsius(data.main.temp) : null, _.has(data, 'main.temp_max') ? convertToCelsius(data.main.temp_max) : null, _.has(data, 'main.temp_min') ? convertToCelsius(data.main.temp_min) : null, _.has(data, 'clouds.all') ? data.clouds.all : null, _.has(data, 'main.humidity') ? data.main.humidity : null, _.has(data, 'main.pressure') ? data.main.pressure : null, _.has(data, 'wind.speed') ? data.wind.speed : null, 0);
+    return new Weather(generateUuid(), dateUTC, place.id, _.has(data, 'weather[0].main') && _.has(data, 'weather[0].description') ? getWeatherTypeId(data.weather[0].main, data.weather[0].description) : null, _.has(data, 'wind.deg') ? getWindDirectionFromDegrees(data.wind.deg) : null, _.has(data, 'main.temp') ? convertCalvinToCelsius(data.main.temp) : null, _.has(data, 'main.temp_max') ? convertCalvinToCelsius(data.main.temp_max) : null, _.has(data, 'main.temp_min') ? convertCalvinToCelsius(data.main.temp_min) : null, _.has(data, 'clouds.all') ? data.clouds.all : null, _.has(data, 'main.humidity') ? data.main.humidity : null, _.has(data, 'main.pressure') ? data.main.pressure : null, _.has(data, 'wind.speed') ? data.wind.speed : null, 0);
 }
 function getForecastFromOpenWeatherMap(data, dateUTC, place) {
     var forecast = [];
     if (_.has(data, 'list')) {
         for (var _i = 0, _a = data.list; _i < _a.length; _i++) {
             var item = _a[_i];
-            var weather = new Weather(generateUuid(), _.has(item, 'dt') ? item.dt * 1000 : null, place.id, _.has(item, 'weather[0].main') && _.has(item, 'weather[0].description') ? getWeatherTypeId(item.weather[0].main, item.weather[0].description) : null, _.has(item, 'wind.deg') ? getWindDirectionFromDegrees(item.wind.deg) : null, _.has(item, 'main.temp') ? convertToCelsius(item.main.temp) : null, _.has(item, 'main.temp_max') ? convertToCelsius(item.main.temp_max) : null, _.has(item, 'main.temp_min') ? convertToCelsius(item.main.temp_min) : null, _.has(item, 'clouds.all') ? item.clouds.all : null, _.has(item, 'main.humidity') ? item.main.humidity : null, _.has(item, 'main.pressure') ? item.main.pressure : null, _.has(item, 'wind.speed') ? item.wind.speed : null, 1);
+            var weather = new Weather(generateUuid(), _.has(item, 'dt') ? item.dt * 1000 : null, place.id, _.has(item, 'weather[0].main') && _.has(item, 'weather[0].description') ? getWeatherTypeId(item.weather[0].main, item.weather[0].description) : null, _.has(item, 'wind.deg') ? getWindDirectionFromDegrees(item.wind.deg) : null, _.has(item, 'main.temp') ? convertCalvinToCelsius(item.main.temp) : null, _.has(item, 'main.temp_max') ? convertCalvinToCelsius(item.main.temp_max) : null, _.has(item, 'main.temp_min') ? convertCalvinToCelsius(item.main.temp_min) : null, _.has(item, 'clouds.all') ? item.clouds.all : null, _.has(item, 'main.humidity') ? item.main.humidity : null, _.has(item, 'main.pressure') ? item.main.pressure : null, _.has(item, 'wind.speed') ? item.wind.speed : null, 1);
+            forecast.push(weather);
+            logger.info(weather);
+        }
+    }
+    return forecast;
+}
+function getCurrentWeatherFromDarkSky(data, dateUTC, place) {
+    return new Weather(generateUuid(), dateUTC, place.id, _.has(data, 'currently.summary') ? getWeatherTypeId(data.currently.summary, '') : null, null, _.has(data, 'currently.temperature') ? convertFahrenheitToCelsius(data.currently.temperature) : null, null, null, _.has(data, 'currently.cloudCover') ? data.currently.cloudCover * 100 : null, _.has(data, 'currently.humidity') ? data.currently.humidity * 100 : null, _.has(data, 'currently.pressure') ? data.currently.pressure : null, _.has(data, 'currently.windSpeed') ? convertMilesPerHourToMetersPerSecond(data.currently.windSpeed) : null, 0);
+}
+function getForecastFromDarkSky(data, dateUTC, place) {
+    var forecast = [];
+    if (_.has(data, 'hourly.data')) {
+        for (var _i = 0, _a = data.hourly.data; _i < _a.length; _i++) {
+            var item = _a[_i];
+            var weather = new Weather(generateUuid(), _.has(item, 'time') ? item.time * 1000 : null, place.id, _.has(item, 'summary') ? getWeatherTypeId(item.summary, '') : null, null, _.has(item, 'temperature') ? convertFahrenheitToCelsius(item.temperature) : null, null, null, _.has(item, 'cloudCover') ? item.cloudCover * 100 : null, _.has(item, 'humidity') ? item.humidity * 100 : null, _.has(item, 'pressure') ? item.pressure : null, _.has(item, 'windSpeed') ? convertMilesPerHourToMetersPerSecond(item.windSpeed) : null, 1);
+            forecast.push(weather);
+            logger.info(weather);
+        }
+    }
+    if (_.has(data, 'daily.data')) {
+        for (var _b = 0, _c = data.daily.data; _b < _c.length; _b++) {
+            var item = _c[_b];
+            var weather = new Weather(generateUuid(), _.has(item, 'time') ? item.time * 1000 : null, place.id, _.has(item, 'summary') ? getWeatherTypeId(item.summary, '') : null, null, _.has(item, 'temperature') ? convertFahrenheitToCelsius(item.temperature) : null, null, null, _.has(item, 'cloudCover') ? item.cloudCover * 100 : null, _.has(item, 'humidity') ? item.humidity * 100 : null, _.has(item, 'pressure') ? item.pressure : null, _.has(item, 'windSpeed') ? convertMilesPerHourToMetersPerSecond(item.windSpeed) : null, 1);
             forecast.push(weather);
             logger.info(weather);
         }
@@ -422,8 +515,14 @@ function getForecastFromOpenWeatherMap(data, dateUTC, place) {
 function roundToTwoDecimals(num) {
     return (Math.round(num * 100) / 100);
 }
-function convertToCelsius(temperature) {
+function convertCalvinToCelsius(temperature) {
     return roundToTwoDecimals(temperature - 273.15);
+}
+function convertFahrenheitToCelsius(temperature) {
+    return roundToTwoDecimals((temperature - 32) / 1.8);
+}
+function convertMilesPerHourToMetersPerSecond(value) {
+    return roundToTwoDecimals(value * 0.44704);
 }
 function getWindDirectionFromDegrees(degrees) {
     if (degrees >= 348.75 || degrees <= 11.25)
