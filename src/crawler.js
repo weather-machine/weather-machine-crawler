@@ -19,7 +19,7 @@ var config = {
         {
             name: 'openweathermap',
             protocol: 'http',
-            isActive: true,
+            isActive: false,
             currentWeatherUrls: {
                 byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#',
@@ -32,7 +32,7 @@ var config = {
         {
             name: 'darksky',
             protocol: 'https',
-            isActive: true,
+            isActive: false,
             currentWeatherUrls: {
                 byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
             },
@@ -43,7 +43,7 @@ var config = {
         {
             name: 'aerisapi',
             protocol: 'https',
-            isActive: true,
+            isActive: false,
             currentWeatherUrls: {
                 byCoordinates: 'https://api.aerisapi.com/forecasts/#$%REPLACE%$#?from=today&to=+1day&limit=1&filter=daynight&client_id=pfDGPRSS5D3I6Ixo5bYNb&client_secret=IAIzVEk5GBolHBFk39CeIUPFlHXtr6WiZNFtxxuv'
             },
@@ -54,12 +54,23 @@ var config = {
         {
             name: 'worldweatheronline',
             protocol: 'http',
-            isActive: true,
+            isActive: false,
             currentWeatherUrls: {
                 byCoordinates: 'http://api.worldweatheronline.com/premium/v1/weather.ashx?key=8f53b968759f48c083f213632182510&q=#$%REPLACE%$#&num_of_days=1&tp=24&format=json&fbclid=IwAR3y3AkNyCm25KOmOl-NQPHdGMcnYceAQuEfBKK6nT-48wRh6wnA3UCEQvg'
             },
             forecastUrls: {
                 byCoordinates: 'http://api.worldweatheronline.com/premium/v1/weather.ashx?key=8f53b968759f48c083f213632182510&q=#$%REPLACE%$#&num_of_days=5&tp=1&format=json&fbclid=IwAR3y3AkNyCm25KOmOl-NQPHdGMcnYceAQuEfBKK6nT-48wRh6wnA3UCEQvg'
+            }
+        },
+        {
+            name: 'heredestinationweather',
+            protocol: 'https',
+            isActive: true,
+            currentWeatherUrls: {
+                byCity: 'https://weather.cit.api.here.com/weather/1.0/report.json?product=forecast_hourly&name=#$%REPLACE%$#&app_id=DemoAppId01082013GAL&app_code=AJKnXv84fjrb0KIHawS0Tg'
+            },
+            forecastUrls: {
+                byCity: 'https://weather.cit.api.here.com/weather/1.0/report.json?product=forecast_hourly&name=#$%REPLACE%$#&app_id=DemoAppId01082013GAL&app_code=AJKnXv84fjrb0KIHawS0Tg'
             }
         }
     ]
@@ -488,6 +499,10 @@ function prepareUrl(page, cityMode, isForecastNeeded, place) {
             url = url.replace(replacePrefix, place.latitude + ',' + place.longitude);
             break;
         }
+        case 'heredestinationweather': {
+            url = url.replace(replacePrefix, place.name);
+            break;
+        }
         default: {
             url = '';
         }
@@ -513,6 +528,10 @@ function initializeWeather(data, page, place) {
         }
         case 'worldweatheronline': {
             weather = getCurrentWeatherFromWorldWeatherOnline(data, dateUTC, place);
+            break;
+        }
+        case 'heredestinationweather': {
+            weather = null;
             break;
         }
         default: {
@@ -541,6 +560,10 @@ function initializeForecast(data, page, place) {
         }
         case 'worldweatheronline': {
             forecast = getForecastFromWorldWeatherOnline(data, dateUTC, place);
+            break;
+        }
+        case 'heredestinationweather': {
+            forecast = getForecastFromHereDestinationWeather(data, dateUTC, place);
             break;
         }
         default: {
@@ -630,6 +653,18 @@ function getForecastFromWorldWeatherOnline(data, dateUTC, place) {
     }
     return forecast;
 }
+function getForecastFromHereDestinationWeather(data, dateUTC, place) {
+    var forecast = [];
+    if (_.has(data, 'hourlyForecasts.forecastLocation.forecast')) {
+        for (var _i = 0, _a = data.hourlyForecasts.forecastLocation.forecast; _i < _a.length; _i++) {
+            var item = _a[_i];
+            var weather = new Weather(generateUuid(), _.has(item, 'utcTime') ? parseHereDestinationWeatherUtcDate(item.utcTime) : null, place.id, _.has(item, 'skyInfo') && _.has(item, 'description') ? getWeatherTypeId(getWeatherMainTypeFromHereDestinationWeather(item.skyInfo), item.description) : null, _.has(item, 'windDirection') ? getWindDirectionFromDegrees(item.windDirection) : null, _.has(item, 'temperature') ? +item.temperature : null, null, null, null, _.has(item, 'humidity') ? +item.humidity : null, null, _.has(item, 'windSpeed') ? convertKilometersPerHourToMetersPerSecond(item.windSpeed) : null, 1);
+            forecast.push(weather);
+            logger.info(weather);
+        }
+    }
+    return forecast;
+}
 function roundToTwoDecimals(num) {
     return (Math.round(num * 100) / 100);
 }
@@ -644,6 +679,51 @@ function convertMilesPerHourToMetersPerSecond(value) {
 }
 function convertKilometersPerHourToMetersPerSecond(value) {
     return roundToTwoDecimals(value / 3.6);
+}
+function parseHereDestinationWeatherUtcDate(date) {
+    var splittedDate = _.split(date, 'T');
+    var splittedDateDate = _.split(splittedDate[0], '-');
+    var splittedDateTime = _.split(splittedDate[1], ':', 2);
+    return +new Date(splittedDateDate[0], splittedDateDate[1] - 1, splittedDateDate[2], splittedDateTime[0], splittedDateTime[1], 0, 0);
+}
+function getWeatherMainTypeFromHereDestinationWeather(mainTypeCode) {
+    var map = {
+        1: 'Sunny',
+        2: 'Clear',
+        3: 'Mostly Sunny',
+        4: 'Mostly Clear',
+        5: 'Hazy Sunshine',
+        6: 'Haze',
+        7: 'Passing Clouds',
+        8: 'More Sun than Clouds',
+        9: 'Scattered Clouds',
+        10: 'Partly Cloudy',
+        11: 'A Mixture of Sun and Clouds',
+        12: 'High Level Clouds',
+        13: 'More Clouds than Sun',
+        14: 'Partly Sunny',
+        15: 'Broken Clouds',
+        16: 'Mostly Cloudy',
+        17: 'Cloudy',
+        18: 'Overcast',
+        19: 'Low Clouds',
+        20: 'Light Fog',
+        21: 'Fog',
+        22: 'Dense Fog',
+        23: 'Ice Fog',
+        24: 'Sandstorm',
+        25: 'Duststorm',
+        26: 'Increasing Cloudiness',
+        27: 'Decreasing Cloudiness',
+        28: 'Clearing Skies',
+        29: 'Breaks of Sun Later',
+        30: 'Early Fog Followed by Sunny Skies',
+        31: 'Afternoon Clouds',
+        32: 'Morning Clouds',
+        33: 'Smoke',
+        34: 'Low Level Haze'
+    };
+    return map[mainTypeCode];
 }
 function getWindDirectionFromDegrees(degrees) {
     if (degrees >= 348.75 || degrees <= 11.25)
