@@ -19,7 +19,7 @@ var config = {
         {
             name: 'openweathermap',
             protocol: 'http',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#',
@@ -32,7 +32,7 @@ var config = {
         {
             name: 'darksky',
             protocol: 'https',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCoordinates: 'https://api.darksky.net/forecast/204218e843ea261cb878ec13a243cd71/#$%REPLACE%$#'
             },
@@ -43,7 +43,7 @@ var config = {
         {
             name: 'aerisapi',
             protocol: 'https',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCoordinates: 'https://api.aerisapi.com/forecasts/#$%REPLACE%$#?from=today&to=+1day&limit=1&filter=daynight&client_id=pfDGPRSS5D3I6Ixo5bYNb&client_secret=IAIzVEk5GBolHBFk39CeIUPFlHXtr6WiZNFtxxuv'
             },
@@ -54,7 +54,7 @@ var config = {
         {
             name: 'worldweatheronline',
             protocol: 'http',
-            isActive: false,
+            isActive: true,
             currentWeatherUrls: {
                 byCoordinates: 'http://api.worldweatheronline.com/premium/v1/weather.ashx?key=8f53b968759f48c083f213632182510&q=#$%REPLACE%$#&num_of_days=1&tp=24&format=json&fbclid=IwAR3y3AkNyCm25KOmOl-NQPHdGMcnYceAQuEfBKK6nT-48wRh6wnA3UCEQvg'
             },
