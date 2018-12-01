@@ -3,6 +3,8 @@ let http = require('http');
 // @ts-ignore
 let https = require('https');
 // @ts-ignore
+let request = require('request');
+// @ts-ignore
 let _ = require('lodash');
 // @ts-ignore
 let log4js = require('log4js');
@@ -13,11 +15,13 @@ log4js.configure({
 });
 
 const logger = log4js.getLogger('cheese');
+const minutes = 60000;
 
 const config = {
     ip: '127.0.0.1',
     port: 1337,
-    intervalDuration: 10000,
+    intervalDuration: 60 * minutes,
+    restUrl: 'http://51.38.132.13:1339/',
     pages: [
         {
             name: 'openweathermap',
@@ -213,6 +217,26 @@ class Weather {
     set isForecast(value: number) {
         this._isForecast = value;
     }
+
+    toJson() {
+        let weatherType: WeatherType = getWeatherTypeById(this._weatherTypeId);
+
+        return {
+            PlaceId: this._placeId,
+            Main: _.isNull(weatherType) ? null : weatherType.main,
+            Desc: _.isNull(weatherType) ? null : weatherType.description,
+            Wind_DirId: 1,
+            Date: this._date,
+            Temperature: this._temperature,
+            Temperature_Max: this._temperatureMax,
+            Temperature_Min: this._temperatureMin,
+            Cloud_cover: this._cloudCover,
+            Humidity_percent: this._humidityPercent,
+            Pressure_mb: this._pressureMb,
+            Wind_speed: this._windSpeed,
+            IsForecast: this._isForecast
+        }
+    }
 }
 
 class Place {
@@ -338,13 +362,26 @@ function generateUuid() {
     });
 }
 
-let weathers: Weather[] = [];
 let places: Place[] = [];
 let weatherTypes: WeatherType[] = [];
 
-function initializePlaces() {
-    places.push(new Place(1, 'London', 51.5100, -0.1300, 'uk'));
-    places.push(new Place(2, 'Warsaw', 52.2300, 21.0100, 'pl'));
+function compare(otherArray){
+    return function(current){
+        return otherArray.filter(function(other){
+            return other.value == current.value && other.display == current.display
+        }).length == 0;
+    }
+}
+
+function initializePlaces(remotePlaces: any) {
+    let diff = remotePlaces.filter(compare(places));
+    for (let p of diff) {
+        if (_.has(p, 'Id') && _.has(p, 'Name') && _.has(p, 'Latitude') && _.has(p, 'Longitude') && _.has(p, 'Country')) {
+            let place = new Place(p.Id, p.Name, p.Latitude, p.Longitude, p.Country);
+            places.push(place);
+            gatherData(place);
+        }
+    }
 }
 
 function getWeatherTypeId(main: string, description: string) {
@@ -360,6 +397,17 @@ function getWeatherTypeId(main: string, description: string) {
     }
 
     return weatherTypeId;
+}
+
+function getWeatherTypeById(id: number) {
+    let result = null;
+    for (let weatherType of weatherTypes) {
+        if (weatherType.id === id) {
+            result = weatherType;
+        }
+    }
+
+    return result;
 }
 
 function gatherData(specificPlace: Place = null) {
@@ -392,6 +440,8 @@ function gatherData(specificPlace: Place = null) {
 
 function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boolean) {
     let url: string = prepareUrl(page, _.has(page, 'currentWeatherUrls.byCity'), isForecastNeeded, place);
+    let weather: Weather = null;
+    let weathers: Weather[] = [];
 
     if (page.protocol === 'https') {
         https.get(url, function (res) {
@@ -403,9 +453,17 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    weathers = [ ...weathers, ...initializeForecast(JSON.parse(data), page, place)];
+                    weathers = initializeForecast(JSON.parse(data), page, place);
+                    for (let w of weathers) {
+                        if (!_.isNull(w)) {
+                            postWeather(w);
+                        }
+                    }
                 } else {
-                    weathers.push(initializeWeather(JSON.parse(data), page, place));
+                    weather = initializeWeather(JSON.parse(data), page, place);
+                    if (!_.isNull(weather)) {
+                        postWeather(weather);
+                    }
                 }
             });
             console.log('request success', url);
@@ -424,9 +482,16 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    weathers = [ ...weathers, ...initializeForecast(JSON.parse(data), page, place)];
+                    for (let w of weathers) {
+                        if (!_.isNull(w)) {
+                            postWeather(w);
+                        }
+                    }
                 } else {
-                    weathers.push(initializeWeather(JSON.parse(data), page, place));
+                    weather = initializeWeather(JSON.parse(data), page, place);
+                    if (!_.isNull(weather)) {
+                        postWeather(weather);
+                    }
                 }
             });
             console.log('request success', url);
@@ -891,8 +956,42 @@ function getWindDirectionFromDegrees(degrees: number) {
     if (degrees > 326.25 && degrees < 348.75) return WindDirection.NNW;
 }
 
+function getPlaces() {
+    let getPlacesUrl = config.restUrl + 'places';
+    http.get(getPlacesUrl, function (res) {
+        let data: string = '';
+        console.log('request started', getPlacesUrl);
+        logger.info('request started', getPlacesUrl);
+        res.on('data', function (chunk) {
+            data += chunk;
+        });
+        res.on('end', function () {
+            initializePlaces(JSON.parse(data));
+        });
+        console.log('request success', getPlacesUrl);
+        logger.info('request success', getPlacesUrl);
+    }).on('error', function (error) {
+        console.log('request failed', getPlacesUrl);
+        console.log('error with: ' + getPlacesUrl + '\n' + error.message);
+        logger.info('request failed', getPlacesUrl);
+        logger.info('error with: ' + getPlacesUrl + '\n' + error.message);
+    });
+}
+
+function postWeather(weather: Weather) {
+    console.log(weather.toJson());
+    request({
+        url: config.restUrl + 'forecast',
+        method: 'POST',
+        json: true,
+        body: weather.toJson()
+    }, function (error, response, body){
+        console.log(error);
+    });
+}
+
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
-initializePlaces();
+setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
