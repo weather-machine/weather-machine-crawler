@@ -845,14 +845,15 @@ function getPlaces() {
     });
 }
 function postWeather(weather) {
-    console.log(weather.toJson());
     request({
         url: config.restUrl + 'forecast',
         method: 'POST',
         json: true,
         body: weather.toJson()
     }, function (error, response, body) {
-        console.log(error);
+        if (response && _.has(response, 'statusCode')) {
+            console.log(+new Date(), 'POST WEATHER', response.statusCode);
+        }
     });
 }
 http.createServer().listen(config.port, config.ip);
