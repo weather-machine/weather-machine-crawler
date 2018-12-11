@@ -18,7 +18,7 @@ var config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
-    restUrl: 'http://51.38.132.13:1339/',
+    restUrl: 'http://0.0.0.0:1339/',
     pages: [
         {
             name: 'openweathermap',
@@ -424,16 +424,20 @@ function gatherData(specificPlace) {
     if (specificPlace === null) {
         var _loop_1 = function (page) {
             if (page.isActive) {
-                var _loop_2 = function (i) {
+                var _loop_3 = function (i) {
                     setTimeout(function () {
                         console.log('Page: ' + page.name, Date.now());
                         logger.info('Page: ' + page.name, Date.now());
-                        getDataFromExternalApi(page, places[i], false);
-                        getDataFromExternalApi(page, places[i], true);
+                        setTimeout(function () {
+                            getDataFromExternalApi(page, places[i], false);
+                        }, i * 5000);
+                        setTimeout(function () {
+                            getDataFromExternalApi(page, places[i], true);
+                        }, i * 5000);
                     }, i * 1000);
                 };
                 for (var i = 0; i < places.length; i++) {
-                    _loop_2(i);
+                    _loop_3(i);
                 }
             }
         };
@@ -443,14 +447,21 @@ function gatherData(specificPlace) {
         }
     }
     else {
-        for (var _b = 0, _c = config.pages; _b < _c.length; _b++) {
-            var page = _c[_b];
+        var _loop_2 = function (page) {
             if (page.isActive) {
                 console.log('Page: ' + page.name, Date.now());
                 logger.info('Page: ' + page.name, Date.now());
-                getDataFromExternalApi(page, specificPlace, false);
-                getDataFromExternalApi(page, specificPlace, true);
+                setTimeout(function () {
+                    getDataFromExternalApi(page, specificPlace, false);
+                }, 5000);
+                setTimeout(function () {
+                    getDataFromExternalApi(page, specificPlace, true);
+                }, 5000);
             }
+        };
+        for (var _b = 0, _c = config.pages; _b < _c.length; _b++) {
+            var page = _c[_b];
+            _loop_2(page);
         }
     }
 }
@@ -469,17 +480,23 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
             res.on('end', function () {
                 if (isForecastNeeded) {
                     weathers = initializeForecast(JSON.parse(data), page, place);
-                    for (var _i = 0, weathers_1 = weathers; _i < weathers_1.length; _i++) {
-                        var w = weathers_1[_i];
+                    var _loop_4 = function (w) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            setTimeout(function () {
+                                postWeather(weathers[w]);
+                            }, w * 5000);
                         }
+                    };
+                    for (var w = 0; w < weathers.length; w++) {
+                        _loop_4(w);
                     }
                 }
                 else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        setTimeout(function () {
+                            postWeather(weather);
+                        }, 5000);
                     }
                 }
             });
@@ -500,17 +517,23 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    for (var _i = 0, weathers_2 = weathers; _i < weathers_2.length; _i++) {
-                        var w = weathers_2[_i];
+                    var _loop_5 = function (w) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            setTimeout(function () {
+                                postWeather(weathers[w]);
+                            }, w * 5000);
                         }
+                    };
+                    for (var w = 0; w < weathers.length; w++) {
+                        _loop_5(w);
                     }
                 }
                 else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        setTimeout(function () {
+                            postWeather(weather);
+                        }, 5000);
                     }
                 }
             });
@@ -856,8 +879,22 @@ function postWeather(weather) {
         }
     });
 }
+function postMockupWeather(weather) {
+    request({
+        url: config.restUrl + 'forecast',
+        method: 'POST',
+        json: true,
+        body: weather.toJson()
+    }, function (error, response, body) {
+        if (response && _.has(response, 'statusCode')) {
+            console.log(+new Date(), 'POST WEATHER', response.statusCode);
+        }
+    });
+}
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
 setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
+// weatherTypes.push(new WeatherType(1, "ok", "olki"));
+// postMockupWeather(new Weather("2", 1543693988000, 1, 1, 1, 30, 30, 30, 10, 40, 1020, 10, 0));

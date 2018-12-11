@@ -21,7 +21,7 @@ const config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
-    restUrl: 'http://51.38.132.13:1339/',
+    restUrl: 'http://0.0.0.0:1339/',
     pages: [
         {
             name: 'openweathermap',
@@ -420,8 +420,12 @@ function gatherData(specificPlace: Place = null) {
                     setTimeout(function(){
                         console.log('Page: ' + page.name, Date.now());
                         logger.info('Page: ' + page.name, Date.now());
-                        getDataFromExternalApi(page, places[i], false);
-                        getDataFromExternalApi(page, places[i], true);
+                        setTimeout(function () {
+                            getDataFromExternalApi(page, places[i], false);
+                        }, i * 5000);
+                        setTimeout(function () {
+                            getDataFromExternalApi(page, places[i], true);
+                        }, i * 5000);
                     },i * 1000);
                 }
             }
@@ -431,8 +435,12 @@ function gatherData(specificPlace: Place = null) {
             if (page.isActive) {
                 console.log('Page: ' + page.name, Date.now());
                 logger.info('Page: ' + page.name, Date.now());
-                getDataFromExternalApi(page, specificPlace, false);
-                getDataFromExternalApi(page, specificPlace, true);
+                setTimeout(function () {
+                    getDataFromExternalApi(page, specificPlace, false);
+                }, 5000);
+                setTimeout(function () {
+                    getDataFromExternalApi(page, specificPlace, true);
+                }, 5000);
             }
         }
     }
@@ -454,15 +462,19 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             res.on('end', function () {
                 if (isForecastNeeded) {
                     weathers = initializeForecast(JSON.parse(data), page, place);
-                    for (let w of weathers) {
+                    for (let w = 0; w < weathers.length; w++) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            setTimeout(function () {
+                                postWeather(weathers[w]);
+                            }, w * 5000);
                         }
                     }
                 } else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        setTimeout(function () {
+                            postWeather(weather);
+                        }, 5000);
                     }
                 }
             });
@@ -482,15 +494,19 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    for (let w of weathers) {
+                    for (let w = 0; w < weathers.length; w++) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            setTimeout(function () {
+                                postWeather(weathers[w]);
+                            }, w * 5000);
                         }
                     }
                 } else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        setTimeout(function () {
+                            postWeather(weather);
+                        }, 5000);
                     }
                 }
             });
@@ -991,8 +1007,23 @@ function postWeather(weather: Weather) {
     });
 }
 
+function postMockupWeather(weather: Weather) {
+    request({
+        url: config.restUrl + 'forecast',
+        method: 'POST',
+        json: true,
+        body: weather.toJson()
+    }, function (error, response, body){
+        if (response && _.has(response, 'statusCode')) {
+            console.log(+new Date(), 'POST WEATHER', response.statusCode);
+        }
+    });
+}
+
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
 setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
+// weatherTypes.push(new WeatherType(1, "ok", "olki"));
+// postMockupWeather(new Weather("2", 1543693988000, 1, 1, 1, 30, 30, 30, 10, 40, 1020, 10, 0));
