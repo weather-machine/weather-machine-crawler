@@ -21,7 +21,8 @@ const config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
-    restUrl: 'http://51.38.132.13:1339/',
+    backendCallsDelay: 1000,
+    restUrl: 'http://0.0.0.0:1339/',
     pages: [
         {
             name: 'openweathermap',
@@ -365,6 +366,10 @@ function generateUuid() {
 let places: Place[] = [];
 let weatherTypes: WeatherType[] = [];
 
+let weathersQueue: Weather[] = [];
+let weathersQueueToSave: Weather[] = [];
+let isQueueManagingRemain: boolean = false;
+
 function compare(otherArray){
     return function(current){
         return otherArray.filter(function(other){
@@ -416,13 +421,11 @@ function gatherData(specificPlace: Place = null) {
     if (specificPlace === null) {
         for (let page of config.pages) {
             if (page.isActive) {
-                for (let i = 0; i < places.length; i++) {
-                    setTimeout(function(){
+                for (let place of places) {
                         console.log('Page: ' + page.name, Date.now());
                         logger.info('Page: ' + page.name, Date.now());
-                        getDataFromExternalApi(page, places[i], false);
-                        getDataFromExternalApi(page, places[i], true);
-                    },i * 1000);
+                        getDataFromExternalApi(page, place, false);
+                        getDataFromExternalApi(page, place, true);
                 }
             }
         }
@@ -454,15 +457,15 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             res.on('end', function () {
                 if (isForecastNeeded) {
                     weathers = initializeForecast(JSON.parse(data), page, place);
-                    for (let w of weathers) {
+                    for (let w = 0; w < weathers.length; w++) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            addWeatherToQueue(weathers[w]);
                         }
                     }
                 } else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        addWeatherToQueue(weather);
                     }
                 }
             });
@@ -482,15 +485,15 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    for (let w of weathers) {
+                    for (let w = 0; w < weathers.length; w++) {
                         if (!_.isNull(w)) {
-                            postWeather(w);
+                            addWeatherToQueue(weathers[w]);
                         }
                     }
                 } else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        postWeather(weather);
+                        addWeatherToQueue(weather);
                     }
                 }
             });
@@ -978,7 +981,59 @@ function getPlaces() {
     });
 }
 
+function addWeatherToQueue(weather: Weather) {
+    weathersQueue.push(weather);
+}
+
+function manageWeatherQueue() {
+    setInterval(function () {
+        if (!isQueueManagingRemain) {
+            isQueueManagingRemain = true;
+            weathersQueueToSave.length = 0;
+            weathersQueueToSave = _.concat(weathersQueueToSave, weathersQueue);
+            weathersQueueToSave = weathersQueueToSave.filter(function (el) {
+                return el !== undefined;
+            });
+            if (weathersQueueToSave.length > 0) {
+                for (let i = 0; i < weathersQueueToSave.length; i++) {
+                    if (weathersQueueToSave[i]) {
+                        setTimeout(function () {
+                            console.log('post', weathersQueueToSave[i].uuid);
+                            postWeather(weathersQueueToSave[i]);
+                            weathersQueue = _.remove(weathersQueue, function (n) {
+                                return n._uuid === weathersQueueToSave[i].uuid;
+                            });
+                            if (i === weathersQueueToSave.length - 1) {
+                                weathersQueueToSave.length = 0;
+                                isQueueManagingRemain = false;
+                            }
+                        }, config.backendCallsDelay * i);
+                    }
+                }
+            } else {
+                weathersQueueToSave.length = 0;
+                isQueueManagingRemain = false;
+            }
+        }
+    }, 2000);
+}
+
 function postWeather(weather: Weather) {
+    if (weather) {
+        request({
+            url: config.restUrl + 'forecast',
+            method: 'POST',
+            json: true,
+            body: weather.toJson()
+        }, function (error, response, body) {
+            if (response && _.has(response, 'statusCode')) {
+                console.log(+new Date(), 'POST WEATHER', response.statusCode);
+            }
+        });
+    }
+}
+
+function postMockupWeather(weather: Weather) {
     request({
         url: config.restUrl + 'forecast',
         method: 'POST',
@@ -994,5 +1049,8 @@ function postWeather(weather: Weather) {
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
+manageWeatherQueue();
 setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
+// weatherTypes.push(new WeatherType(1, "ok", "olki"));
+// postMockupWeather(new Weather("2", 1543693988000, 1, 1, 1, 30, 30, 30, 10, 40, 1020, 10, 0));
