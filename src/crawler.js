@@ -18,6 +18,7 @@ var config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
+    backendCallsDelay: 1000,
     restUrl: 'http://0.0.0.0:1339/',
     pages: [
         {
@@ -375,6 +376,9 @@ function generateUuid() {
 }
 var places = [];
 var weatherTypes = [];
+var weathersQueue = [];
+var weathersQueueToSave = [];
+var isQueueManagingRemain = false;
 function compare(otherArray) {
     return function (current) {
         return otherArray.filter(function (other) {
@@ -422,46 +426,28 @@ function gatherData(specificPlace) {
     console.log('Crawling...');
     logger.info('Crawling...');
     if (specificPlace === null) {
-        var _loop_1 = function (page) {
-            if (page.isActive) {
-                var _loop_3 = function (i) {
-                    setTimeout(function () {
-                        console.log('Page: ' + page.name, Date.now());
-                        logger.info('Page: ' + page.name, Date.now());
-                        setTimeout(function () {
-                            getDataFromExternalApi(page, places[i], false);
-                        }, i * 5000);
-                        setTimeout(function () {
-                            getDataFromExternalApi(page, places[i], true);
-                        }, i * 5000);
-                    }, i * 1000);
-                };
-                for (var i = 0; i < places.length; i++) {
-                    _loop_3(i);
-                }
-            }
-        };
         for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
             var page = _a[_i];
-            _loop_1(page);
+            if (page.isActive) {
+                for (var _b = 0, places_1 = places; _b < places_1.length; _b++) {
+                    var place = places_1[_b];
+                    console.log('Page: ' + page.name, Date.now());
+                    logger.info('Page: ' + page.name, Date.now());
+                    getDataFromExternalApi(page, place, false);
+                    getDataFromExternalApi(page, place, true);
+                }
+            }
         }
     }
     else {
-        var _loop_2 = function (page) {
+        for (var _c = 0, _d = config.pages; _c < _d.length; _c++) {
+            var page = _d[_c];
             if (page.isActive) {
                 console.log('Page: ' + page.name, Date.now());
                 logger.info('Page: ' + page.name, Date.now());
-                setTimeout(function () {
-                    getDataFromExternalApi(page, specificPlace, false);
-                }, 5000);
-                setTimeout(function () {
-                    getDataFromExternalApi(page, specificPlace, true);
-                }, 5000);
+                getDataFromExternalApi(page, specificPlace, false);
+                getDataFromExternalApi(page, specificPlace, true);
             }
-        };
-        for (var _b = 0, _c = config.pages; _b < _c.length; _b++) {
-            var page = _c[_b];
-            _loop_2(page);
         }
     }
 }
@@ -480,23 +466,16 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
             res.on('end', function () {
                 if (isForecastNeeded) {
                     weathers = initializeForecast(JSON.parse(data), page, place);
-                    var _loop_4 = function (w) {
-                        if (!_.isNull(w)) {
-                            setTimeout(function () {
-                                postWeather(weathers[w]);
-                            }, w * 5000);
-                        }
-                    };
                     for (var w = 0; w < weathers.length; w++) {
-                        _loop_4(w);
+                        if (!_.isNull(w)) {
+                            addWeatherToQueue(weathers[w]);
+                        }
                     }
                 }
                 else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        setTimeout(function () {
-                            postWeather(weather);
-                        }, 5000);
+                        addWeatherToQueue(weather);
                     }
                 }
             });
@@ -517,23 +496,16 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    var _loop_5 = function (w) {
-                        if (!_.isNull(w)) {
-                            setTimeout(function () {
-                                postWeather(weathers[w]);
-                            }, w * 5000);
-                        }
-                    };
                     for (var w = 0; w < weathers.length; w++) {
-                        _loop_5(w);
+                        if (!_.isNull(w)) {
+                            addWeatherToQueue(weathers[w]);
+                        }
                     }
                 }
                 else {
                     weather = initializeWeather(JSON.parse(data), page, place);
                     if (!_.isNull(weather)) {
-                        setTimeout(function () {
-                            postWeather(weather);
-                        }, 5000);
+                        addWeatherToQueue(weather);
                     }
                 }
             });
@@ -867,17 +839,58 @@ function getPlaces() {
         logger.info('error with: ' + getPlacesUrl + '\n' + error.message);
     });
 }
-function postWeather(weather) {
-    request({
-        url: config.restUrl + 'forecast',
-        method: 'POST',
-        json: true,
-        body: weather.toJson()
-    }, function (error, response, body) {
-        if (response && _.has(response, 'statusCode')) {
-            console.log(+new Date(), 'POST WEATHER', response.statusCode);
+function addWeatherToQueue(weather) {
+    weathersQueue.push(weather);
+}
+function manageWeatherQueue() {
+    setInterval(function () {
+        if (!isQueueManagingRemain) {
+            isQueueManagingRemain = true;
+            weathersQueueToSave.length = 0;
+            weathersQueueToSave = _.concat(weathersQueueToSave, weathersQueue);
+            weathersQueueToSave = weathersQueueToSave.filter(function (el) {
+                return el !== undefined;
+            });
+            if (weathersQueueToSave.length > 0) {
+                var _loop_1 = function (i) {
+                    if (weathersQueueToSave[i]) {
+                        setTimeout(function () {
+                            console.log('post', weathersQueueToSave[i].uuid);
+                            postWeather(weathersQueueToSave[i]);
+                            weathersQueue = _.remove(weathersQueue, function (n) {
+                                return n._uuid === weathersQueueToSave[i].uuid;
+                            });
+                            if (i === weathersQueueToSave.length - 1) {
+                                weathersQueueToSave.length = 0;
+                                isQueueManagingRemain = false;
+                            }
+                        }, config.backendCallsDelay * i);
+                    }
+                };
+                for (var i = 0; i < weathersQueueToSave.length; i++) {
+                    _loop_1(i);
+                }
+            }
+            else {
+                weathersQueueToSave.length = 0;
+                isQueueManagingRemain = false;
+            }
         }
-    });
+    }, 2000);
+}
+function postWeather(weather) {
+    if (weather) {
+        request({
+            url: config.restUrl + 'forecast',
+            method: 'POST',
+            json: true,
+            body: weather.toJson()
+        }, function (error, response, body) {
+            if (response && _.has(response, 'statusCode')) {
+                console.log(+new Date(), 'POST WEATHER', response.statusCode);
+            }
+        });
+    }
 }
 function postMockupWeather(weather) {
     request({
@@ -894,6 +907,7 @@ function postMockupWeather(weather) {
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
+manageWeatherQueue();
 setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
 // weatherTypes.push(new WeatherType(1, "ok", "olki"));
