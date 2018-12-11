@@ -26,11 +26,11 @@ var config = {
             protocol: 'http',
             isActive: true,
             currentWeatherUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
+                // byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#',
             },
             forecastUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#',
+                // byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#' // f.e.: lat=35&lon=139
             }
         },
@@ -387,14 +387,27 @@ function compare(otherArray) {
     };
 }
 function initializePlaces(remotePlaces) {
-    var diff = remotePlaces.filter(compare(places));
-    for (var _i = 0, diff_1 = diff; _i < diff_1.length; _i++) {
-        var p = diff_1[_i];
-        if (_.has(p, 'Id') && _.has(p, 'Name') && _.has(p, 'Latitude') && _.has(p, 'Longitude') && _.has(p, 'Country')) {
-            var place = new Place(p.Id, p.Name, p.Latitude, p.Longitude, p.Country);
-            places.push(place);
-            gatherData(place);
+    var diff = [];
+    var _loop_1 = function (rp) {
+        var index = _.findIndex(places, function (o) { return o._id === rp.Id; });
+        if (index < 0
+            && _.has(rp, 'Id')
+            && _.has(rp, 'Name')
+            && _.has(rp, 'Latitude')
+            && _.has(rp, 'Longitude')
+            && _.has(rp, 'Country')) {
+            diff.push(new Place(rp.Id, rp.Name, rp.Latitude, rp.Longitude, rp.Country));
         }
+    };
+    for (var _i = 0, remotePlaces_1 = remotePlaces; _i < remotePlaces_1.length; _i++) {
+        var rp = remotePlaces_1[_i];
+        _loop_1(rp);
+    }
+    console.log(diff);
+    for (var _a = 0, diff_1 = diff; _a < diff_1.length; _a++) {
+        var p = diff_1[_a];
+        places.push(p);
+        gatherData(p);
     }
 }
 function getWeatherTypeId(main, description) {
@@ -853,7 +866,7 @@ function manageWeatherQueue() {
                 return el !== undefined;
             });
             if (weathersQueueToSave.length > 0) {
-                var _loop_1 = function (i) {
+                var _loop_2 = function (i) {
                     if (weathersQueueToSave[i]) {
                         setTimeout(function () {
                             console.log('post', weathersQueueToSave[i].uuid);
@@ -867,7 +880,7 @@ function manageWeatherQueue() {
                     }
                 };
                 for (var i = 0; i < weathersQueueToSave.length; i++) {
-                    _loop_1(i);
+                    _loop_2(i);
                 }
             }
             else {

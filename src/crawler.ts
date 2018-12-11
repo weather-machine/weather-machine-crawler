@@ -29,11 +29,11 @@ const config = {
             protocol: 'http',
             isActive: true,
             currentWeatherUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
+                // byCity: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#', // f.e.: lat=35&lon=139
             },
             forecastUrls: {
-                byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
+                // byCity: 'http://api.openweathermap.org/data/2.5/forecast?appid=212e48f40836a854c1a266834563a0b5&q=#$%REPLACE%$#', // f.e. 'Warsaw'
                 byCoordinates: 'http://api.openweathermap.org/data/2.5/weather?appid=212e48f40836a854c1a266834563a0b5&#$%REPLACE%$#' // f.e.: lat=35&lon=139
             }
         },
@@ -379,13 +379,23 @@ function compare(otherArray){
 }
 
 function initializePlaces(remotePlaces: any) {
-    let diff = remotePlaces.filter(compare(places));
-    for (let p of diff) {
-        if (_.has(p, 'Id') && _.has(p, 'Name') && _.has(p, 'Latitude') && _.has(p, 'Longitude') && _.has(p, 'Country')) {
-            let place = new Place(p.Id, p.Name, p.Latitude, p.Longitude, p.Country);
-            places.push(place);
-            gatherData(place);
+    let diff: Place[] = [];
+    for (let rp of remotePlaces) {
+        let index = _.findIndex(places, function(o) { return o._id === rp.Id; });
+        if (index < 0
+            && _.has(rp, 'Id')
+            && _.has(rp, 'Name')
+            && _.has(rp, 'Latitude')
+            && _.has(rp, 'Longitude')
+            && _.has(rp, 'Country')) {
+
+            diff.push(new Place(rp.Id, rp.Name, rp.Latitude, rp.Longitude, rp.Country));
         }
+    }
+    console.log(diff);
+    for (let p of diff) {
+        places.push(p);
+        gatherData(p);
     }
 }
 
