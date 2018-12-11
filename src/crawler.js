@@ -844,6 +844,7 @@ function addWeatherToQueue(weather) {
 }
 function manageWeatherQueue() {
     setInterval(function () {
+        console.log('weathersQueueSize:', weathersQueue.length);
         if (!isQueueManagingRemain) {
             isQueueManagingRemain = true;
             weathersQueueToSave.length = 0;
@@ -857,9 +858,7 @@ function manageWeatherQueue() {
                         setTimeout(function () {
                             console.log('post', weathersQueueToSave[i].uuid);
                             postWeather(weathersQueueToSave[i]);
-                            weathersQueue = _.remove(weathersQueue, function (n) {
-                                return n._uuid === weathersQueueToSave[i].uuid;
-                            });
+                            weathersQueue = weathersQueue.filter(function (weather) { return weather.uuid !== weathersQueueToSave[i].uuid; });
                             if (i === weathersQueueToSave.length - 1) {
                                 weathersQueueToSave.length = 0;
                                 isQueueManagingRemain = false;
@@ -892,23 +891,9 @@ function postWeather(weather) {
         });
     }
 }
-function postMockupWeather(weather) {
-    request({
-        url: config.restUrl + 'forecast',
-        method: 'POST',
-        json: true,
-        body: weather.toJson()
-    }, function (error, response, body) {
-        if (response && _.has(response, 'statusCode')) {
-            console.log(+new Date(), 'POST WEATHER', response.statusCode);
-        }
-    });
-}
 http.createServer().listen(config.port, config.ip);
 console.log('Server running at http://' + config.ip + ':' + config.port + '/');
 logger.info('Server running at http://' + config.ip + ':' + config.port + '/');
 manageWeatherQueue();
 setInterval(getPlaces, 2000);
 setInterval(gatherData, config.intervalDuration);
-// weatherTypes.push(new WeatherType(1, "ok", "olki"));
-// postMockupWeather(new Weather("2", 1543693988000, 1, 1, 1, 30, 30, 30, 10, 40, 1020, 10, 0));
