@@ -19,7 +19,7 @@ var config = {
     port: 1337,
     intervalDuration: 60 * minutes,
     backendCallsDelay: 1000,
-    restUrl: 'http://0.0.0.0:1339/',
+    restUrl: 'http://51.38.132.13:1339/',
     pages: [
         {
             name: 'openweathermap',
