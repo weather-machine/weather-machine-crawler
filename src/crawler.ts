@@ -585,7 +585,7 @@ function prepareUrl(page: any, cityMode: boolean, isForecastNeeded: boolean, pla
 function initializeWeather(data: any, page: any, place: Place) {
     let weather: Weather;
     let date = new Date();
-    let dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+    let dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 0, 0, 0);
 
     switch (page.name) {
         case 'openweathermap': {

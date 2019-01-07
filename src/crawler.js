@@ -615,7 +615,7 @@ function prepareUrl(page, cityMode, isForecastNeeded, place) {
 function initializeWeather(data, page, place) {
     var weather;
     var date = new Date();
-    var dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds());
+    var dateUTC = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), date.getUTCHours(), 0, 0, 0);
     switch (page.name) {
         case 'openweathermap': {
             weather = getCurrentWeatherFromOpenWeatherMap(data, dateUTC, place);
