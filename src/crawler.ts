@@ -21,8 +21,9 @@ const config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
-    backendCallsDelay: 10,
+    backendCallsDelay: 5,
     restUrl: 'http://51.38.132.13:1339/',
+    isConsoleEnabled: false,
     pages: [
         {
             name: 'openweathermap',
@@ -392,7 +393,8 @@ function initializePlaces(remotePlaces: any) {
             diff.push(new Place(rp.Id, rp.Name, rp.Latitude, rp.Longitude, rp.Country));
         }
     }
-    console.log(diff);
+    if (config.isConsoleEnabled)
+    if (config.isConsoleEnabled) console.log(diff);
     for (let p of diff) {
         places.push(p);
         gatherData(p);
@@ -426,13 +428,13 @@ function getWeatherTypeById(id: number) {
 }
 
 function gatherData(specificPlace: Place = null) {
-    console.log('Crawling...');
+    if (config.isConsoleEnabled) console.log('Crawling...');
     logger.info('Crawling...');
     if (specificPlace === null) {
         for (let page of config.pages) {
             if (page.isActive) {
                 for (let place of places) {
-                        console.log('Page: ' + page.name, Date.now());
+                        if (config.isConsoleEnabled) console.log('Page: ' + page.name, Date.now());
                         logger.info('Page: ' + page.name, Date.now());
                         getDataFromExternalApi(page, place, false);
                         getDataFromExternalApi(page, place, true);
@@ -442,7 +444,7 @@ function gatherData(specificPlace: Place = null) {
     } else {
         for (let page of config.pages) {
             if (page.isActive) {
-                console.log('Page: ' + page.name, Date.now());
+                if (config.isConsoleEnabled) console.log('Page: ' + page.name, Date.now());
                 logger.info('Page: ' + page.name, Date.now());
                 getDataFromExternalApi(page, specificPlace, false);
                 getDataFromExternalApi(page, specificPlace, true);
@@ -459,27 +461,37 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
     if (page.protocol === 'https') {
         https.get(url, function (res) {
             let data: string = '';
-            console.log('request started', url);
+            if (config.isConsoleEnabled) console.log('request started', url);
             logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    weathers = initializeForecast(JSON.parse(data), page, place);
-                    for (let w = 0; w < weathers.length; w++) {
-                        if (!_.isNull(w)) {
-                            addWeatherToQueue(weathers[w]);
+                    try {
+                        weathers = initializeForecast(JSON.parse(data), page, place);
+                        for (let w = 0; w < weathers.length; w++) {
+                            if (!_.isNull(w)) {
+                                addWeatherToQueue(weathers[w]);
+                            }
                         }
+                    } catch (error) {
+                        if (config.isConsoleEnabled) console.log(error);
+                        logger.info('error', error);
                     }
                 } else {
-                    weather = initializeWeather(JSON.parse(data), page, place);
-                    if (!_.isNull(weather)) {
-                        addWeatherToQueue(weather);
+                    try {
+                        weather = initializeWeather(JSON.parse(data), page, place);
+                        if (!_.isNull(weather)) {
+                            addWeatherToQueue(weather);
+                        }
+                    } catch (error) {
+                        if (config.isConsoleEnabled) console.log(error);
+                        logger.info('error', error);
                     }
                 }
             });
-            console.log('request success', url);
+            if (config.isConsoleEnabled) console.log('request success', url);
             logger.info('request success', url);
         }).on('error', function (error) {
             logger.info('request failed', url);
@@ -488,7 +500,7 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
     } else {
         http.get(url, function (res) {
             let data: string = '';
-            console.log('request started', url);
+            if (config.isConsoleEnabled) console.log('request started', url);
             logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
@@ -501,13 +513,18 @@ function getDataFromExternalApi(page: any, place: Place, isForecastNeeded: boole
                         }
                     }
                 } else {
-                    weather = initializeWeather(JSON.parse(data), page, place);
-                    if (!_.isNull(weather)) {
-                        addWeatherToQueue(weather);
+                    try {
+                        weather = initializeWeather(JSON.parse(data), page, place);
+                        if (!_.isNull(weather)) {
+                            addWeatherToQueue(weather);
+                        }
+                    } catch (error) {
+                        if (config.isConsoleEnabled) console.log(error);
+                        logger.info('error', error);
                     }
                 }
             });
-            console.log('request success', url);
+            if (config.isConsoleEnabled) console.log('request success', url);
             logger.info('request success', url);
         }).on('error', function (error) {
             logger.info('request failed', url);
@@ -973,19 +990,24 @@ function getPlaces() {
     let getPlacesUrl = config.restUrl + 'places';
     http.get(getPlacesUrl, function (res) {
         let data: string = '';
-        console.log('request started', getPlacesUrl);
+        if (config.isConsoleEnabled) console.log('request started', getPlacesUrl);
         logger.info('request started', getPlacesUrl);
         res.on('data', function (chunk) {
             data += chunk;
         });
         res.on('end', function () {
-            initializePlaces(JSON.parse(data));
+            try {
+                initializePlaces(JSON.parse(data));
+            } catch (error) {
+                if (config.isConsoleEnabled) console.log(error);
+                logger.info('error', error);
+            }
         });
-        console.log('request success', getPlacesUrl);
+        if (config.isConsoleEnabled) console.log('request success', getPlacesUrl);
         logger.info('request success', getPlacesUrl);
     }).on('error', function (error) {
-        console.log('request failed', getPlacesUrl);
-        console.log('error with: ' + getPlacesUrl + '\n' + error.message);
+        if (config.isConsoleEnabled) console.log('request failed', getPlacesUrl);
+        if (config.isConsoleEnabled) console.log('error with: ' + getPlacesUrl + '\n' + error.message);
         logger.info('request failed', getPlacesUrl);
         logger.info('error with: ' + getPlacesUrl + '\n' + error.message);
     });
@@ -997,7 +1019,7 @@ function addWeatherToQueue(weather: Weather) {
 
 function manageWeatherQueue() {
     setInterval(function () {
-        console.log('weathersQueueSize:', weathersQueue.length);
+        if (config.isConsoleEnabled) console.log('weathersQueueSize:', weathersQueue.length);
         if (!isQueueManagingRemain) {
             isQueueManagingRemain = true;
             weathersQueueToSave.length = 0;
@@ -1009,7 +1031,7 @@ function manageWeatherQueue() {
                 for (let i = 0; i < weathersQueueToSave.length; i++) {
                     if (weathersQueueToSave[i]) {
                         setTimeout(function () {
-                            console.log('post', weathersQueueToSave[i].uuid);
+                            if (config.isConsoleEnabled) console.log('post', weathersQueueToSave[i].uuid);
                             postWeather(weathersQueueToSave[i]);
                             weathersQueue = weathersQueue.filter(weather => weather.uuid !== weathersQueueToSave[i].uuid);
                             if (i === weathersQueueToSave.length - 1) {
@@ -1036,7 +1058,7 @@ function postWeather(weather: Weather) {
             body: weather.toJson()
         }, function (error, response, body) {
             if (response && _.has(response, 'statusCode')) {
-                console.log(+new Date(), 'POST WEATHER', response.statusCode);
+                if (config.isConsoleEnabled) console.log(+new Date(), 'POST WEATHER', response.statusCode);
             }
         });
     }

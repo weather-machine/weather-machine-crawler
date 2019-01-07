@@ -18,8 +18,9 @@ var config = {
     ip: '127.0.0.1',
     port: 1337,
     intervalDuration: 60 * minutes,
-    backendCallsDelay: 10,
+    backendCallsDelay: 5,
     restUrl: 'http://51.38.132.13:1339/',
+    isConsoleEnabled: false,
     pages: [
         {
             name: 'openweathermap',
@@ -403,7 +404,9 @@ function initializePlaces(remotePlaces) {
         var rp = remotePlaces_1[_i];
         _loop_1(rp);
     }
-    console.log(diff);
+    if (config.isConsoleEnabled)
+        if (config.isConsoleEnabled)
+            console.log(diff);
     for (var _a = 0, diff_1 = diff; _a < diff_1.length; _a++) {
         var p = diff_1[_a];
         places.push(p);
@@ -436,7 +439,8 @@ function getWeatherTypeById(id) {
 }
 function gatherData(specificPlace) {
     if (specificPlace === void 0) { specificPlace = null; }
-    console.log('Crawling...');
+    if (config.isConsoleEnabled)
+        console.log('Crawling...');
     logger.info('Crawling...');
     if (specificPlace === null) {
         for (var _i = 0, _a = config.pages; _i < _a.length; _i++) {
@@ -444,7 +448,8 @@ function gatherData(specificPlace) {
             if (page.isActive) {
                 for (var _b = 0, places_1 = places; _b < places_1.length; _b++) {
                     var place = places_1[_b];
-                    console.log('Page: ' + page.name, Date.now());
+                    if (config.isConsoleEnabled)
+                        console.log('Page: ' + page.name, Date.now());
                     logger.info('Page: ' + page.name, Date.now());
                     getDataFromExternalApi(page, place, false);
                     getDataFromExternalApi(page, place, true);
@@ -456,7 +461,8 @@ function gatherData(specificPlace) {
         for (var _c = 0, _d = config.pages; _c < _d.length; _c++) {
             var page = _d[_c];
             if (page.isActive) {
-                console.log('Page: ' + page.name, Date.now());
+                if (config.isConsoleEnabled)
+                    console.log('Page: ' + page.name, Date.now());
                 logger.info('Page: ' + page.name, Date.now());
                 getDataFromExternalApi(page, specificPlace, false);
                 getDataFromExternalApi(page, specificPlace, true);
@@ -471,28 +477,44 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
     if (page.protocol === 'https') {
         https.get(url, function (res) {
             var data = '';
-            console.log('request started', url);
+            if (config.isConsoleEnabled)
+                console.log('request started', url);
             logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
             });
             res.on('end', function () {
                 if (isForecastNeeded) {
-                    weathers = initializeForecast(JSON.parse(data), page, place);
-                    for (var w = 0; w < weathers.length; w++) {
-                        if (!_.isNull(w)) {
-                            addWeatherToQueue(weathers[w]);
+                    try {
+                        weathers = initializeForecast(JSON.parse(data), page, place);
+                        for (var w = 0; w < weathers.length; w++) {
+                            if (!_.isNull(w)) {
+                                addWeatherToQueue(weathers[w]);
+                            }
                         }
+                    }
+                    catch (error) {
+                        if (config.isConsoleEnabled)
+                            console.log(error);
+                        logger.info('error', error);
                     }
                 }
                 else {
-                    weather = initializeWeather(JSON.parse(data), page, place);
-                    if (!_.isNull(weather)) {
-                        addWeatherToQueue(weather);
+                    try {
+                        weather = initializeWeather(JSON.parse(data), page, place);
+                        if (!_.isNull(weather)) {
+                            addWeatherToQueue(weather);
+                        }
+                    }
+                    catch (error) {
+                        if (config.isConsoleEnabled)
+                            console.log(error);
+                        logger.info('error', error);
                     }
                 }
             });
-            console.log('request success', url);
+            if (config.isConsoleEnabled)
+                console.log('request success', url);
             logger.info('request success', url);
         }).on('error', function (error) {
             logger.info('request failed', url);
@@ -502,7 +524,8 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
     else {
         http.get(url, function (res) {
             var data = '';
-            console.log('request started', url);
+            if (config.isConsoleEnabled)
+                console.log('request started', url);
             logger.info('request started', url);
             res.on('data', function (chunk) {
                 data += chunk;
@@ -516,13 +539,21 @@ function getDataFromExternalApi(page, place, isForecastNeeded) {
                     }
                 }
                 else {
-                    weather = initializeWeather(JSON.parse(data), page, place);
-                    if (!_.isNull(weather)) {
-                        addWeatherToQueue(weather);
+                    try {
+                        weather = initializeWeather(JSON.parse(data), page, place);
+                        if (!_.isNull(weather)) {
+                            addWeatherToQueue(weather);
+                        }
+                    }
+                    catch (error) {
+                        if (config.isConsoleEnabled)
+                            console.log(error);
+                        logger.info('error', error);
                     }
                 }
             });
-            console.log('request success', url);
+            if (config.isConsoleEnabled)
+                console.log('request success', url);
             logger.info('request success', url);
         }).on('error', function (error) {
             logger.info('request failed', url);
@@ -835,19 +866,30 @@ function getPlaces() {
     var getPlacesUrl = config.restUrl + 'places';
     http.get(getPlacesUrl, function (res) {
         var data = '';
-        console.log('request started', getPlacesUrl);
+        if (config.isConsoleEnabled)
+            console.log('request started', getPlacesUrl);
         logger.info('request started', getPlacesUrl);
         res.on('data', function (chunk) {
             data += chunk;
         });
         res.on('end', function () {
-            initializePlaces(JSON.parse(data));
+            try {
+                initializePlaces(JSON.parse(data));
+            }
+            catch (error) {
+                if (config.isConsoleEnabled)
+                    console.log(error);
+                logger.info('error', error);
+            }
         });
-        console.log('request success', getPlacesUrl);
+        if (config.isConsoleEnabled)
+            console.log('request success', getPlacesUrl);
         logger.info('request success', getPlacesUrl);
     }).on('error', function (error) {
-        console.log('request failed', getPlacesUrl);
-        console.log('error with: ' + getPlacesUrl + '\n' + error.message);
+        if (config.isConsoleEnabled)
+            console.log('request failed', getPlacesUrl);
+        if (config.isConsoleEnabled)
+            console.log('error with: ' + getPlacesUrl + '\n' + error.message);
         logger.info('request failed', getPlacesUrl);
         logger.info('error with: ' + getPlacesUrl + '\n' + error.message);
     });
@@ -857,7 +899,8 @@ function addWeatherToQueue(weather) {
 }
 function manageWeatherQueue() {
     setInterval(function () {
-        console.log('weathersQueueSize:', weathersQueue.length);
+        if (config.isConsoleEnabled)
+            console.log('weathersQueueSize:', weathersQueue.length);
         if (!isQueueManagingRemain) {
             isQueueManagingRemain = true;
             weathersQueueToSave.length = 0;
@@ -869,7 +912,8 @@ function manageWeatherQueue() {
                 var _loop_2 = function (i) {
                     if (weathersQueueToSave[i]) {
                         setTimeout(function () {
-                            console.log('post', weathersQueueToSave[i].uuid);
+                            if (config.isConsoleEnabled)
+                                console.log('post', weathersQueueToSave[i].uuid);
                             postWeather(weathersQueueToSave[i]);
                             weathersQueue = weathersQueue.filter(function (weather) { return weather.uuid !== weathersQueueToSave[i].uuid; });
                             if (i === weathersQueueToSave.length - 1) {
@@ -899,7 +943,8 @@ function postWeather(weather) {
             body: weather.toJson()
         }, function (error, response, body) {
             if (response && _.has(response, 'statusCode')) {
-                console.log(+new Date(), 'POST WEATHER', response.statusCode);
+                if (config.isConsoleEnabled)
+                    console.log(+new Date(), 'POST WEATHER', response.statusCode);
             }
         });
     }
