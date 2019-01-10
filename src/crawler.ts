@@ -227,7 +227,7 @@ class Weather {
             PlaceId: this._placeId,
             Main: _.isNull(weatherType) || !isMainTypeSupported(weatherType.main) ? 'unknown' : weatherType.main,
             Desc: _.isNull(weatherType) || !isMainTypeSupported(weatherType.description) ? 'unknown' : weatherType.description,
-            Wind_DirId: 1,
+            Wind_DirId: this._windDirectionId,
             Date: this._date,
             Temperature: this._temperature,
             Temperature_Max: this._temperatureMax,
