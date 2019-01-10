@@ -225,8 +225,8 @@ class Weather {
 
         return {
             PlaceId: this._placeId,
-            Main: _.isNull(weatherType) ? null : weatherType.main,
-            Desc: _.isNull(weatherType) ? null : weatherType.description,
+            Main: _.isNull(weatherType) || !isMainTypeSupported(weatherType.main) ? 'unknown' : weatherType.main,
+            Desc: _.isNull(weatherType) || !isMainTypeSupported(weatherType.description) ? 'unknown' : weatherType.description,
             Wind_DirId: 1,
             Date: this._date,
             Temperature: this._temperature,
@@ -332,6 +332,43 @@ class WeatherType {
         this._description = value;
     }
 }
+
+const weatherMainTypeMap = {
+    1: 'Pogodnie',
+    2: 'Jasno',
+    3: 'Przewaznie pogodnie',
+    4: 'Przewaznie jasno',
+    5: 'Zamglone slonce',
+    6: 'Mgla',
+    7: 'Przemijajace chmury',
+    8: 'Wiecej slonca niz chmur',
+    9: 'Rozproszone chmury',
+    10: 'Polowiczne zachmurzenie',
+    11: 'Slonce i chmury',
+    12: 'Wysokie chmury',
+    13: 'Wiecej chmur niz slonca',
+    14: 'Polowicznie slonecznie',
+    15: 'Rozbite chmury',
+    16: 'Przewaznie pochmurno',
+    17: 'Chmury',
+    18: 'Pochmurno',
+    19: 'Niskie chmury',
+    20: 'Lekka mgla',
+    21: 'Mgla',
+    22: 'Gesta mgla',
+    23: 'Mgla lodowa',
+    24: 'Burza piaskowa',
+    25: 'Burza pylu',
+    26: 'Zwiekaszajace sie zachmurzenie',
+    27: 'Zmniejszajace sie zachmurzenie',
+    28: 'Rozpogodzenie',
+    29: 'Przeswity slonca',
+    30: 'Wczesna mgla, po ktorej nastepuje rozpogodzenie',
+    31: 'Popoludniowe zachmurzenie',
+    32: 'Poranne zachmurzenie',
+    33: 'Upalnie',
+    34: 'Niski poziom zamglenia'
+};
 
 enum WindDirection {
     N = 1,
@@ -927,44 +964,11 @@ function parseHereDestinationWeatherUtcDate(date: string) {
 }
 
 function getWeatherMainTypeFromHereDestinationWeather(mainTypeCode: number) {
-    let map = {
-        1: 'Pogodnie',
-        2: 'Jasno',
-        3: 'Przewaznie pogodnie',
-        4: 'Przewaznie jasno',
-        5: 'Zamglone slonce',
-        6: 'Mgla',
-        7: 'Przemijajace chmury',
-        8: 'Wiecej slonca niz chmur',
-        9: 'Rozproszone chmury',
-        10: 'Polowiczne zachmurzenie',
-        11: 'Slonce i chmury',
-        12: 'Wysokie chmury',
-        13: 'Wiecej chmur niz slonca',
-        14: 'Polowicznie slonecznie',
-        15: 'Rozbite chmury',
-        16: 'Przewaznie pochmurno',
-        17: 'Chmury',
-        18: 'Pochmurno',
-        19: 'Niskie chmury',
-        20: 'Lekka mgla',
-        21: 'Mgla',
-        22: 'Gesta mgla',
-        23: 'Mgla lodowa',
-        24: 'Burza piaskowa',
-        25: 'Burza pylu',
-        26: 'Zwiekaszajace sie zachmurzenie',
-        27: 'Zmniejszajace sie zachmurzenie',
-        28: 'Rozpogodzenie',
-        29: 'Przeswity slonca',
-        30: 'Wczesna mgla, po ktorej nastepuje rozpogodzenie',
-        31: 'Popoludniowe zachmurzenie',
-        32: 'Poranne zachmurzenie',
-        33: 'Upalnie',
-        34: 'Niski poziom zamglenia'
-    };
+    return weatherMainTypeMap[mainTypeCode];
+}
 
-    return map[mainTypeCode];
+function isMainTypeSupported(mainType: string) {
+    return _.includes(weatherMainTypeMap, mainType);
 }
 
 function getWindDirectionFromDegrees(degrees: number) {
